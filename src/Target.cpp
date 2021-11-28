@@ -13,10 +13,10 @@ static const auto SRC = "src";
 bool Target::load(Mas::Map const &target_mas)
 {
 	std::string lang, type;
-	load_string(target_mas, NAME, _name);
-	load_string(target_mas, LANG, lang);
-	load_string(target_mas, STD, _std);
-	load_string(target_mas, TYPE, type);
+	Mas::get_string(target_mas, NAME, _name);
+	Mas::get_string(target_mas, LANG, lang);
+	Mas::get_string(target_mas, STD, _std);
+	Mas::get_string(target_mas, TYPE, type);
 	if (lang == "c") {
 		_lang = Lang::C;
 	} else if (lang == "c++") {

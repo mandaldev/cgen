@@ -50,12 +50,4 @@ private:
 
 }; // class Target
 
-static inline void load_string(Mas::Map const &m, std::string const &key, std::string &value)
-{
-	auto it = m.find(key);
-	if (it != m.end()) {
-		value = it->second.string_or({});
-	}
-}
-
 #endif

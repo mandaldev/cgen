@@ -92,6 +92,8 @@ private:
 
 }; // class Value
 
+bool get_string(Mas::Map const &m, std::string const &key, std::string &value);
+
 } // namespace Mas
 
 #endif

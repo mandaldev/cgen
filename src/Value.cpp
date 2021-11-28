@@ -428,4 +428,17 @@ std::optional<Value> decode(std::string const &mas_text)
 	return decoder.decode_value();
 }
 
+bool get_string(Mas::Map const &m, std::string const &key, std::string &value)
+{
+	auto it = m.find(key);
+	if (it != m.end()) {
+		if (it->second.is_string()) {
+			value = it->second.string_or({});
+			return true;
+		}
+	}
+	value.clear();
+	return false;
+}
+
 } // namespace Mas

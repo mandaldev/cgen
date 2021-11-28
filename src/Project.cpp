@@ -43,10 +43,10 @@ static bool load_target(Mas::Map const &m, std::map<std::string, std::shared_ptr
 
 bool Project::load(Mas::Map const &project_mas)
 {
-	load_string(project_mas, NAME, _name);
-	load_string(project_mas, AUTHOR, _author);
-	load_string(project_mas, EMAIL, _email);
-	load_string(project_mas, LICENSE, _license);
+	Mas::get_string(project_mas, NAME, _name);
+	Mas::get_string(project_mas, AUTHOR, _author);
+	Mas::get_string(project_mas, EMAIL, _email);
+	Mas::get_string(project_mas, LICENSE, _license);
 
 	auto it = project_mas.find(TARGET);
 	if (it != project_mas.end()) {
