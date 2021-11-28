@@ -1,0 +1,24 @@
+{
+  name "mas"
+  author "Mandal Dev"
+  license "GPL-3.0"
+
+  target [
+    {
+      name "mas"
+
+      language "c++"
+      std "c++17"
+
+      type "exe"
+      src [
+        "src/main.cpp"
+        "src/Value.cpp"
+        "src/CommandLine.cpp"
+        "src/Driver.cpp"
+        "src/Project.cpp"
+        "src/Target.cpp"
+      ]
+    }
+  ]
+}
