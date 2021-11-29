@@ -191,6 +191,49 @@ bool Target::gen_slib() const
 
 bool Target::gen_dlib() const
 {
+	std::string fname = "./build/debug/" + _name + NINJA_BUILD_EXT;
+	std::ofstream fs;
+	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
+	if (fs.fail()) {
+		std::cerr
+			<< "Failed to open file " << fname
+			<< std::endl;
+		return false;
+	}
+	fs
+		<< "cflags = $g_cflags -std=" << _std << std::endl
+		<< std::endl
+		<< "rule compile\n"
+		<< "    deps = gcc\n"
+		<< "    depfile = $out.d\n"
+		<< "    command = g++ $cflags -MD -MF $out.d -fPIC -c -o $out $in\n"
+		<< std::endl
+		<< "rule link\n"
+		<< "    command = g++ -shared -o $out $in\n"
+		<< std::endl
+		;
+	std::string obj_list;
+	for (auto const &s : _src) {
+		std::filesystem::path p{ s };
+		if (p.has_parent_path()) {
+			std::error_code ec;
+			std::filesystem::create_directories(p.parent_path(), ec);
+			if (ec) {
+				// error
+			}
+		}
+		fs << "build " << s << ".o" << ": compile ../../" << s << std::endl;
+		obj_list += s + ".o ";
+	}
+	auto name = "lib" + _name + ".so";
+	fs
+		<< std::endl
+		<< "build " << name << ": link " << obj_list << std::endl
+		<< std::endl
+		<< "default " << name
+		<< std::endl
+		;
+	std::cerr << fname << " written\n";
 	return true;
 }
 
