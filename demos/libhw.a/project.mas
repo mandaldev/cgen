@@ -1,0 +1,19 @@
+{
+  name "hw"
+  author "Mandal Dev"
+  license "GPL-3.0"
+
+  target [
+    {
+      name "hw"
+
+      language "c++"
+      std "c++17"
+
+      type "slib"
+      src [
+        "src/lib.cpp"
+      ]
+    }
+  ]
+}
