@@ -2,9 +2,12 @@
 #define MAS_SRC_COMMON_HPP
 #include <string>
 
+enum class TargetType {
+	Executable,
+	StaticLibrary,
+	DynamicLibrary,
+}; // enum class Type
+	   //
 static std::string const PROJECT_MAS = "project.mas";
-
-static std::string const NINJA_BUILD_EXT = ".ninja";
-static std::string const NINJA_BUILD = "build.ninja";
 
 #endif

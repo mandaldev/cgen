@@ -1,6 +1,7 @@
 #ifndef MAS_SRC_TARGET_HPP
 #define MAS_SRC_TARGET_HPP
 #include "Value.hpp"
+#include "common.hpp"
 #include <set>
 
 class Target
@@ -9,11 +10,6 @@ class Target
 		C,
 		CPlusPlus,
 	}; // enum class Lang
-	enum class Type {
-		Executable,
-		StaticLibrary,
-		DynamicLibrary,
-	}; // enum class Type
 public:
 
 	Target() = default;
@@ -33,18 +29,12 @@ public:
 
 private:
 
-	bool gen_exe() const;
-
-	bool gen_slib() const;
-
-	bool gen_dlib() const;
-
 private:
 
 	std::string _name;
 	Lang _lang;
 	std::string _std;
-	Type _type;
+	TargetType _type;
 
 	std::set<std::string> _src;
 

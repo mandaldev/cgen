@@ -18,6 +18,7 @@
         "src/Driver.cpp"
         "src/Project.cpp"
         "src/Target.cpp"
+        "src/ninja.cpp"
       ]
     }
   ]

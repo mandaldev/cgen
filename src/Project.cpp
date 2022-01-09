@@ -1,5 +1,6 @@
 #include "Project.hpp"
 #include "common.hpp"
+#include "ninja.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -89,6 +90,11 @@ bool Project::configure() const
 {
 	auto ninja_build = "./build/debug/" + NINJA_BUILD;
 	std::error_code ec;
+	std::filesystem::create_directories(std::filesystem::path(ninja_build).parent_path(), ec);
+	if (ec) {
+		// error
+		return false;
+	}
 	auto in = std::filesystem::last_write_time(PROJECT_MAS, ec);
 	auto out = std::filesystem::last_write_time(ninja_build, ec);
 	if (ec || in > out) {
@@ -99,14 +105,18 @@ bool Project::configure() const
 
 bool Project::gen() const
 {
-	std::string fname = "./build/debug/" + NINJA_BUILD;
-	std::error_code ec;
-	std::filesystem::create_directories(std::filesystem::path(fname).parent_path(), ec);
-	if (ec) {
-		// error
+	std::vector<std::string> targets;
+	for (auto const &t : _targets) {
+		if (t.second->gen()) { // generate each target first
+			targets.push_back(t.first);
+		} else {
+			return false;
+		}
 	}
+	auto script = gen_ninja_build("g++", "-Wall -g", targets);
 
 	std::ofstream fs;
+	std::string fname = "./build/debug/" + NINJA_BUILD;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
 		std::cerr
@@ -114,17 +124,8 @@ bool Project::gen() const
 			<< std::endl;
 		return false;
 	}
-	fs
-		<< "g_cflags = -Wall -g\n"
-		<< std::endl
-		<< "include "
-		;
-	for (auto const &t : _targets) {
-		fs << t.first << NINJA_BUILD_EXT << "\n";
-		if (!t.second->gen()) {
-			return false;
-		}
-	}
+	fs << script;
+	fs.close();
 	std::cerr << fname << " written\n";
 	return true;
 }
