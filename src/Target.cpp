@@ -81,7 +81,7 @@ bool Target::gen() const
 	case TargetType::Executable:
 	case TargetType::StaticLibrary:
 	case TargetType::DynamicLibrary:
-		return gen_ninja_target_build("debug", _type, _name, _src, "", "");
+		return gen_ninja_target_build("debug", _type, _name, _src, "-std=" + _std, "");
 	default:
 		return false;
 	}
