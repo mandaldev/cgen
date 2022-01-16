@@ -23,6 +23,8 @@ protected:
 
 	bool gen() const;
 
+	bool gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated) const;
+
 private:
 
 	std::string _name;

@@ -19,10 +19,9 @@ public:
 	/// load target data from mas
 	bool load(Mas::Map const &target_mas);
 
-	std::string const &name() const
-	{
-		return _name;
-	}
+	std::string name() const;
+
+	std::set<std::string> dep() const;
 
 	/// generate build scripts
 	bool gen() const;
@@ -37,6 +36,7 @@ private:
 	TargetType _type;
 
 	std::set<std::string> _src;
+	std::set<std::string> _dep;
 
 }; // class Target
 

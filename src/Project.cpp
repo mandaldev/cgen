@@ -22,7 +22,7 @@ static bool load_target(Mas::Map const &m, std::map<std::string, std::shared_ptr
 		;
 		return false;
 	}
-	auto &name = target->name();
+	auto name = target->name();
 	if (name.length()) {
 		if (!targets.count(name)) {
 			targets.insert({ target->name(), target });
@@ -103,17 +103,33 @@ bool Project::configure() const
 	return true;
 }
 
-bool Project::gen() const
+bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated) const
 {
-	std::vector<std::string> targets;
-	for (auto const &t : _targets) {
-		if (t.second->gen()) { // generate each target first
-			targets.push_back(t.first);
-		} else {
+	if (generated.count(target->name())) { // loop dep?
+		return true;
+	}
+	generated.insert(target->name());
+	for (auto &d : target->dep()) {
+		auto it = _targets.find(d);
+		if (it == _targets.end()) {
+			return false;
+		}
+		if (!gen_with_dep(it->second, generated)) {
 			return false;
 		}
 	}
-	auto script = gen_ninja_build("g++", "-Wall -g", targets);
+	return target->gen();
+}
+
+bool Project::gen() const
+{
+	std::set<std::string> generated;
+	for (auto const &t : _targets) {
+		if (!gen_with_dep(t.second, generated)) { // generate each target first
+			return false;
+		}
+	}
+	auto script = gen_ninja_build("g++", "-Wall -g", generated);
 
 	std::ofstream fs;
 	std::string fname = "./build/debug/" + NINJA_BUILD;

@@ -43,6 +43,7 @@ static std::string const NINJA_BUILD_EXT = ".ninja";
 static std::string const NINJA_BUILD = "build.ninja";
 
 static std::string const NINJA_GLOBAL_CFLAGS = "g_cflags";
+static std::string const NINJA_GLOBAL_LFLAGS = "g_lflags";
 static std::string const NINJA_RULE_COMPILE = "compile";
 static std::string const NINJA_RULE_LINK_EXE = "link_exe";
 static std::string const NINJA_RULE_LINK_SLIB = "link_slib";
@@ -55,7 +56,7 @@ static std::string const NINJA_RULE_LINK_DLIB = "link_dlib";
 std::string gen_ninja_build(
 	std::string const &gcc_cmd,
 	std::string const &cflags,
-	std::vector<std::string> const &include_names
+	std::set<std::string> const &subninja_names
 );
 
 bool gen_ninja_target_build(
@@ -63,6 +64,7 @@ bool gen_ninja_target_build(
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,
+	std::set<std::string> const &dep,
 	std::string const &extra_cflags,
 	std::string const &extra_lflags
 );

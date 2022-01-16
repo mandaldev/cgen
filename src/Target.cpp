@@ -10,6 +10,28 @@ static const auto LANG = "language";
 static const auto STD = "std";
 static const auto TYPE = "type";
 static const auto SRC = "src";
+static const auto DEP = "dep";
+
+static std::optional<std::string> load_string_set(Mas::Value const &mas, std::set<std::string> &set)
+{
+	if (!mas.is_array()) {
+		return "Not an array value";
+	}
+	for (auto &s : mas.array_or({})) {
+		if (!s.is_string()) {
+			return "Not a string value";
+		}
+		auto &path = s.string_or({});
+		if (path.empty()) {
+			return "Empty string";
+		}
+		if (set.count(path)) {
+			return "Not a unique string: " + path;
+		}
+		set.insert(path);
+	}
+	return {};
+}
 
 bool Target::load(Mas::Map const &target_mas)
 {
@@ -43,36 +65,31 @@ bool Target::load(Mas::Map const &target_mas)
 
 	auto it = target_mas.find(SRC);
 	if (it != target_mas.end()) {
-		if (!it->second.is_array()) {
-			std::cerr
-				<< "Target's 'src' key must be array value"
-				<< std::endl;
+		auto emsg = load_string_set(it->second, _src);
+		if (emsg.has_value()) {
+			std::cerr << "Error: invalid 'src' of target '" << _name << "': " << emsg.value() << std::endl;
 			return false;
 		}
-		for (auto &s : it->second.array_or({})) {
-			if (!s.is_string()) {
-				std::cerr
-					<< "Path of 'src' must be string value"
-					<< std::endl;
-				return false;
-			}
-			auto &path = s.string_or({});
-			if (path.empty()) {
-				std::cerr
-					<< "Path in 'src' must not be empty"
-					<< std::endl;
-				return false;
-			}
-			if (_src.count(path)) {
-				std::cerr
-					<< "Every path in 'src' must be unique"
-					<< std::endl;
-				return false;
-			}
-			_src.insert(path);
+	}
+	it = target_mas.find(DEP);
+	if (it != target_mas.end()) {
+		auto emsg = load_string_set(it->second, _dep);
+		if (emsg.has_value()) {
+			std::cerr << "Error: invalid 'dep' of target '" << _name << "': " << emsg.value() << std::endl;
+			return false;
 		}
 	}
 	return true;
+}
+
+std::string Target::name() const
+{
+	return _name;
+}
+
+std::set<std::string> Target::dep() const
+{
+	return _dep;
 }
 
 bool Target::gen() const
@@ -81,7 +98,7 @@ bool Target::gen() const
 	case TargetType::Executable:
 	case TargetType::StaticLibrary:
 	case TargetType::DynamicLibrary:
-		return gen_ninja_target_build("debug", _type, _name, _src, "-std=" + _std, "");
+		return gen_ninja_target_build("debug", _type, _name, _src, _dep, "-std=" + _std, "");
 	default:
 		return false;
 	}

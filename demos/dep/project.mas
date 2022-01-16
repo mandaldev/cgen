@@ -1,0 +1,51 @@
+{
+  name "hw"
+  author "Mandal Dev"
+  license "GPL-3.0"
+
+  target [
+    {
+      name "hw"
+      language "c++"
+      std "c++17"
+      type "exe"
+
+      desc "demo exe target with dep of a slib"
+
+      src [
+        "src/main.cpp"
+      ]
+
+      dep [
+        "slib"
+      ]
+    }
+
+    {
+      name "slib"
+      language "c++"
+      std "c++17"
+      type "slib"
+
+      src [
+        "src/slib/lib.cpp"
+      ]
+    }
+
+    {
+      name "dlib"
+      language "c++"
+      std "c++17"
+      type "dlib"
+      desc "demo dlib target with dep of a slib"
+
+      src [
+        "src/dlib/lib.cpp"
+      ]
+
+      dep [
+        "slib"
+      ]
+    }
+  ]
+}

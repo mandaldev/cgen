@@ -30,14 +30,14 @@ static std::string gen_ninja_rules(std::string const &gcc_cmd)
 std::string gen_ninja_build(
 	std::string const &gcc_cmd,
 	std::string const &cflags,
-	std::vector<std::string> const &include_names
+	std::set<std::string> const &subninja_names
 )
 {
 	std::string build;
 	build += NINJA_GLOBAL_CFLAGS + " = " + cflags + "\n\n";
 	build += gen_ninja_rules(gcc_cmd);
-	for (auto &name : include_names) {
-		build += "include " + name + NINJA_BUILD_EXT + "\n";
+	for (auto &name : subninja_names) {
+		build += "subninja " + name + NINJA_BUILD_EXT + "\n";
 	}
 	return build;
 }
@@ -47,30 +47,42 @@ bool gen_ninja_target_build(
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,
+	std::set<std::string> const &dep,
 	std::string const &extra_cflags,
 	std::string const &extra_lflags
 )
 {
+	std::string cflags = extra_cflags;
+	std::string lflags = extra_lflags;
+	std::string deps;
 	std::string script;
-
-	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + extra_cflags;
-	std::string out_name, rule;
+	if (dep.size()) {
+		deps = " |";
+		for (auto &d : dep) {
+			lflags += " -l" + d;
+			deps += " _phony_" + d;
+		}
+		lflags += " -L.";
+	}
+	std::string out_name, link_rule;
 	switch (type) {
 	case TargetType::Executable:
 		out_name = name;
-		rule = NINJA_RULE_LINK_EXE;
+		link_rule = NINJA_RULE_LINK_EXE;
 		break;
 	case TargetType::StaticLibrary:
 		out_name = "lib" + name + ".a";
-		rule = NINJA_RULE_LINK_SLIB;
+		link_rule = NINJA_RULE_LINK_SLIB;
 		break;
 	case TargetType::DynamicLibrary:
-		script += " -fPIC";
+		cflags += " -fPIC";
 		out_name = "lib" + name + ".so";
-		rule = NINJA_RULE_LINK_DLIB;
+		link_rule = NINJA_RULE_LINK_DLIB;
 		break;
 	}
-	script += "\n\n";
+	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + cflags + "\n";
+	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + lflags + "\n";
+	script += "\n";
 
 	std::string obj_list;
 	for (auto const &s : src) {
@@ -85,8 +97,9 @@ bool gen_ninja_target_build(
 		script += "build " + s + ".o: " + NINJA_RULE_COMPILE + " ../../" + s + "\n";
 		obj_list += s + ".o ";
 	}
-	script += "build " + out_name + ": " + rule + " " + obj_list + " " + extra_lflags + "\n"
-		+ "default " + out_name + "\n";
+	script += "build " + out_name + ": " + link_rule + " " + obj_list + deps + "\n";
+	script += "build _phony_" + name + ": phony " + out_name + "\n";
+	script += "default _phony_" + name + "\n";
 
 	std::string fname = "./build/" + profile + "/" + name + NINJA_BUILD_EXT;
 	std::ofstream fs;
