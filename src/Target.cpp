@@ -87,19 +87,50 @@ std::string Target::name() const
 	return _name;
 }
 
+TargetType Target::type() const
+{
+	return _type;
+}
+
 std::set<std::string> Target::dep() const
 {
 	return _dep;
 }
 
-bool Target::gen() const
+bool Target::gen(std::map<std::string, TargetType> const &all_dep_type) const
 {
 	switch (_type) {
 	case TargetType::Executable:
 	case TargetType::StaticLibrary:
 	case TargetType::DynamicLibrary:
-		return gen_ninja_target_build("debug", _type, _name, _src, _dep, "-std=" + _std, "");
+		break;
 	default:
 		return false;
 	}
+	std::vector<std::string> dep_implicit, dep_order_only;
+	for (auto &d : _dep) {
+		auto it = all_dep_type.find(d);
+		if (it != all_dep_type.end()) {
+			switch (it->second) {
+			case TargetType::StaticLibrary:
+				dep_implicit.push_back(d);
+				break;
+			case TargetType::Executable:
+			case TargetType::DynamicLibrary:
+			default:
+				dep_order_only.push_back(d);
+				break;
+			}
+		}
+	}
+	return gen_ninja_target_build(
+		"debug",
+		_type,
+		_name,
+		_src,
+		dep_implicit,
+		dep_order_only,
+		"-std=" + _std,
+		""
+	);
 }

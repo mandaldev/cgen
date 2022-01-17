@@ -47,7 +47,8 @@ bool gen_ninja_target_build(
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,
-	std::set<std::string> const &dep,
+	std::vector<std::string> const &dep_implicit,
+	std::vector<std::string> const &dep_order_only,
 	std::string const &extra_cflags,
 	std::string const &extra_lflags
 )
@@ -56,12 +57,21 @@ bool gen_ninja_target_build(
 	std::string lflags = extra_lflags;
 	std::string deps;
 	std::string script;
-	if (dep.size()) {
+	if (dep_implicit.size()) {
 		deps = " |";
-		for (auto &d : dep) {
+		for (auto &d : dep_implicit) {
 			lflags += " -l" + d;
 			deps += " _phony_" + d;
 		}
+	}
+	if (dep_order_only.size()) {
+		deps = " ||";
+		for (auto &d : dep_order_only) {
+			lflags += " -l" + d;
+			deps += " _phony_" + d;
+		}
+	}
+	if (deps.size()) {
 		lflags += " -L.";
 	}
 	std::string out_name, link_rule;

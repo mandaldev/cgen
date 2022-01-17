@@ -33,6 +33,7 @@ private:
 	std::string _license;
 
 	std::map<std::string, std::shared_ptr<Target>> _targets;
+	std::map<std::string, TargetType> _targets_type;
 
 }; // class Project
 

@@ -64,7 +64,8 @@ bool gen_ninja_target_build(
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,
-	std::set<std::string> const &dep,
+	std::vector<std::string> const &dep_implicit,
+	std::vector<std::string> const &dep_order_only,
 	std::string const &extra_cflags,
 	std::string const &extra_lflags
 );

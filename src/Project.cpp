@@ -68,6 +68,9 @@ bool Project::load(Mas::Map const &project_mas)
 				return false;
 			}
 		}
+		for (auto &target : _targets) {
+			_targets_type.insert({ target.first, target.second->type() });
+		}
 	}
 	return true;
 }
@@ -118,7 +121,7 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 			return false;
 		}
 	}
-	return target->gen();
+	return target->gen(_targets_type);
 }
 
 bool Project::gen() const

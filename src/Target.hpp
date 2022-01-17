@@ -21,10 +21,12 @@ public:
 
 	std::string name() const;
 
+	TargetType type() const;
+
 	std::set<std::string> dep() const;
 
 	/// generate build scripts
-	bool gen() const;
+	bool gen(std::map<std::string, TargetType> const &all_dep_type) const;
 
 private:
 
