@@ -1,24 +1,46 @@
 {
-  name "mas"
+  name "cgen"
   author "Mandal Dev"
   license "GPL-3.0"
 
   target [
     {
-      name "mas"
-
+      name "cgen"
       language "c++"
       std "c++17"
-
       type "exe"
+
       src [
         "src/main.cpp"
-        "src/Value.cpp"
-        "src/CommandLine.cpp"
         "src/Driver.cpp"
         "src/Project.cpp"
         "src/Target.cpp"
         "src/ninja.cpp"
+      ]
+
+      dep [
+        "mas"
+        "xo"
+      ]
+    }
+    {
+      name "mas"
+      language "c++"
+      std "c++17"
+      type "slib"
+
+      src [
+        "src/mas/Value.cpp"
+      ]
+    }
+    {
+      name "xo"
+      language "c++"
+      std "c++17"
+      type "slib"
+
+      src [
+        "src/xo/CommandLine.cpp"
       ]
     }
   ]

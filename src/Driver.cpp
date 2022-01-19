@@ -58,7 +58,7 @@ int Driver::help()
 {
 	std::cerr
 		<< "Usage:" << std::endl
-		<< "	mas <command> [<args>]" << std::endl
+		<< "	cgen <command> [<args>]" << std::endl
 		<< std::endl
 		<< "Commands:" << std::endl
 		<< "	build [<target>]	build target" << std::endl
@@ -72,14 +72,14 @@ int Driver::help()
 int Driver::build()
 {
 	if (!chroot()) {
-		std::cerr << "Not a mas project path" << std::endl;
+		std::cerr << "Not a cgen project path" << std::endl;
 		return 1;
 	}
 	
 	auto mas = load_project_mas();
 	if (!mas.has_value() || !mas.value().is_map()) {
 		std::cerr
-			<< "Not a valid mas project file"
+			<< "Not a valid cgen project file"
 			<< std::endl;
 		return 1;
 	}
@@ -87,7 +87,7 @@ int Driver::build()
 	Project project;
 	if (!project.load(mas.value().as_map())) {
 		std::cerr
-			<< "Failed to load mas project file"
+			<< "Failed to load cgen project file"
 			<< std::endl;
 		return 1;
 	}

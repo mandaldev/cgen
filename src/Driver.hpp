@@ -6,8 +6,8 @@
 #include <fstream>
 #include <iterator>
 #include <functional>
-#include "Value.hpp"
-#include "CommandLine.hpp"
+#include "mas/Value.hpp"
+#include "xo/CommandLine.hpp"
 #include "Project.hpp"
 
 // Command driver
