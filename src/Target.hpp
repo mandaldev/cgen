@@ -4,12 +4,22 @@
 #include "common.hpp"
 #include <set>
 
+/// a cgen target
 class Target
 {
 	enum class Lang {
 		C,
 		CPlusPlus,
 	}; // enum class Lang
+
+	std::string _name;
+	Lang _lang;
+	std::string _std;
+	TargetType _type;
+
+	std::set<std::string> _src;
+	std::set<std::string> _dep;
+
 public:
 
 	Target() = default;
@@ -27,18 +37,6 @@ public:
 
 	/// generate build scripts
 	bool gen(std::map<std::string, TargetType> const &all_dep_type) const;
-
-private:
-
-private:
-
-	std::string _name;
-	Lang _lang;
-	std::string _std;
-	TargetType _type;
-
-	std::set<std::string> _src;
-	std::set<std::string> _dep;
 
 }; // class Target
 

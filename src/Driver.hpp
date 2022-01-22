@@ -10,16 +10,13 @@
 #include "xo/CommandLine.hpp"
 #include "Project.hpp"
 
-// Command driver
+/// Command driver
 class Driver
 {
-public:
-
-	Driver(int argc, char const *const *argv);
-
-	int run();
-
-private:
+	int _argc = 0;
+	char const *const *_argv = nullptr;
+	XO::CommandLine _cmdline;
+	std::map<std::string, std::function<int()>> _cmd;
 
 	int help();
 
@@ -27,12 +24,11 @@ private:
 
 	int dot();
 
-private:
+public:
 
-	int _argc = 0;
-	char const *const *_argv = nullptr;
-	XO::CommandLine _cmdline;
-	std::map<std::string, std::function<int()>> _cmd;
+	Driver(int argc, char const *const *argv);
+
+	int run();
 
 }; // class Driver
 

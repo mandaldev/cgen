@@ -51,6 +51,11 @@ std::optional<Value> decode(std::string const &mas_text);
 /// Wrapper class of MAS union
 class Value
 {
+	friend class Decoder;
+
+	/// union of MAS
+	std::variant<Map, Array, String> _var;
+
 public:
 
 	Value() = default;
@@ -82,13 +87,6 @@ public:
 	{
 		return std::visit(visitor, _var);
 	}
-
-private:
-
-	friend class Decoder;
-
-	/// union of MAS
-	std::variant<Map, Array, String> _var;
 
 }; // class Value
 
