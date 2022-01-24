@@ -1,8 +1,8 @@
-#include "slib/lib.hpp"
+#include "slib3/lib.hpp"
 #include <iostream>
 
 int main(int argc, const char *argv[])
 {
-	std::cout << slib_get_message() << std::endl;
+	std::cout << slib3_get_message() << std::endl;
 	return 0;
 }

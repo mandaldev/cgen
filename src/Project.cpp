@@ -68,9 +68,6 @@ bool Project::load(Mas::Map const &project_mas)
 				return false;
 			}
 		}
-		for (auto &target : _targets) {
-			_targets_type.insert({ target.first, target.second->type() });
-		}
 	}
 	return true;
 }
@@ -115,18 +112,24 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 	for (auto &d : target->dep()) {
 		auto it = _targets.find(d);
 		if (it == _targets.end()) {
+			std::cerr << "Error: no target named " << d << " found" << std::endl;
 			return false;
 		}
 		if (!gen_with_dep(it->second, generated)) {
 			return false;
 		}
 	}
-	return target->gen(_targets_type);
+	return target->gen(_targets);
 }
 
 bool Project::gen() const
 {
 	std::set<std::string> generated;
+	for (auto const &t : _targets) {
+		if (!t.second->load_indirected(_targets)) {
+			return false;
+		}
+	}
 	for (auto const &t : _targets) {
 		if (!gen_with_dep(t.second, generated)) { // generate each target first
 			return false;

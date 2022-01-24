@@ -1,8 +1,0 @@
-#include "../slib/lib.hpp"
-#include <iostream>
-
-int dlib_main(int argc, const char *argv[])
-{
-	std::cout << slib_get_message() << std::endl;
-	return 0;
-}

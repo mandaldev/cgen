@@ -17,34 +17,94 @@
       ]
 
       dep [
-        "slib"
+        "slib3"
       ]
     }
 
     {
-      name "slib"
+      name "slib1"
       language "c++"
       std "c++17"
       type "slib"
 
       src [
-        "src/slib/lib.cpp"
+        "src/slib1/lib.cpp"
       ]
     }
 
     {
-      name "dlib"
+      name "slib2"
+      language "c++"
+      std "c++17"
+      type "slib"
+
+      src [
+        "src/slib2/lib.cpp"
+      ]
+      dep [
+        "slib1"
+      ]
+    }
+
+    {
+      name "slib3"
+      language "c++"
+      std "c++17"
+      type "slib"
+
+      src [
+        "src/slib3/lib.cpp"
+      ]
+      dep [
+        "slib2"
+      ]
+    }
+
+    {
+      name "dlib1"
       language "c++"
       std "c++17"
       type "dlib"
       desc "demo dlib target with dep of a slib"
 
       src [
-        "src/dlib/lib.cpp"
+        "src/dlib1/lib.cpp"
       ]
 
       dep [
-        "slib"
+        "slib1"
+      ]
+    }
+
+    {
+      name "dlib2"
+      language "c++"
+      std "c++17"
+      type "dlib"
+      desc "demo dlib target with dep of a slib"
+
+      src [
+        "src/dlib2/lib.cpp"
+      ]
+
+      dep [
+        "dlib1"
+      ]
+    }
+
+    {
+      name "dlib3"
+      language "c++"
+      std "c++17"
+      type "dlib"
+      desc "demo dlib target with dep of a slib"
+
+      src [
+        "src/dlib3/lib.cpp"
+      ]
+
+      dep [
+        "dlib2"
       ]
     }
   ]

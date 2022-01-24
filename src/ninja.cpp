@@ -54,25 +54,38 @@ bool gen_ninja_target_build(
 )
 {
 	std::string cflags = extra_cflags;
-	std::string lflags = extra_lflags;
+	std::string lflags;
 	std::string deps;
 	std::string script;
+	std::set<std::string> links;
 	if (dep_implicit.size()) {
 		deps = " |";
 		for (auto &d : dep_implicit) {
-			lflags += " -l" + d;
+			links.insert(d);
 			deps += " _phony_" + d;
 		}
 	}
 	if (dep_order_only.size()) {
 		deps = " ||";
 		for (auto &d : dep_order_only) {
-			lflags += " -l" + d;
+			links.insert(d);
 			deps += " _phony_" + d;
 		}
 	}
+	for (auto &l : links) {
+		lflags += " -l" + l;
+	}
+	// reverse them, make sure linker finds all symbles
+	for (auto it = links.rbegin(); it != links.rend(); it++) {
+		lflags += " -l" + *it;
+	}
 	if (deps.size()) {
 		lflags += " -L.";
+	}
+	if (type == TargetType::StaticLibrary) {
+		lflags = extra_lflags;
+	} else {
+		lflags = extra_lflags + lflags;
 	}
 	std::string out_name, link_rule;
 	switch (type) {

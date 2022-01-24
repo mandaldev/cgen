@@ -97,7 +97,33 @@ std::set<std::string> Target::dep() const
 	return _dep;
 }
 
-bool Target::gen(std::map<std::string, TargetType> const &all_dep_type) const
+bool Target::load_indirected(std::map<std::string, std::shared_ptr<Target>> const &all_targets)
+{
+	if (_indirected_loaded)
+		return true;
+	_indirected_loaded = true; // in case of loop
+	auto dep = _dep;
+	for (auto &d : _dep) {
+		auto it = all_targets.find(d);
+		if (it == all_targets.end()) {
+			std::cerr << "Error: no target named " << d << " found" << std::endl;
+			return false;
+		}
+		if (!it->second->load_indirected(all_targets)) {
+			return false;
+		}
+		auto ddep = it->second->dep();
+		dep.insert(ddep.begin(), ddep.end());
+	}
+	if (dep.count(_name)) {
+		std::cerr << "Error: dep loop found of target " << _name << std::endl;
+		return false;
+	}
+	_dep = dep;
+	return true;
+}
+
+bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targets) const
 {
 	switch (_type) {
 	case TargetType::Executable:
@@ -109,9 +135,9 @@ bool Target::gen(std::map<std::string, TargetType> const &all_dep_type) const
 	}
 	std::vector<std::string> dep_implicit, dep_order_only;
 	for (auto &d : _dep) {
-		auto it = all_dep_type.find(d);
-		if (it != all_dep_type.end()) {
-			switch (it->second) {
+		auto it = all_targets.find(d);
+		if (it != all_targets.end()) {
+			switch (it->second->type()) {
 			case TargetType::StaticLibrary:
 				dep_implicit.push_back(d);
 				break;

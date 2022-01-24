@@ -3,6 +3,7 @@
 #include "mas/Value.hpp"
 #include "common.hpp"
 #include <set>
+#include <memory>
 
 /// a cgen target
 class Target
@@ -20,6 +21,8 @@ class Target
 	std::set<std::string> _src;
 	std::set<std::string> _dep;
 
+	bool _indirected_loaded = false;
+
 public:
 
 	Target() = default;
@@ -35,8 +38,10 @@ public:
 
 	std::set<std::string> dep() const;
 
+	bool load_indirected(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
+
 	/// generate build scripts
-	bool gen(std::map<std::string, TargetType> const &all_dep_type) const;
+	bool gen(std::map<std::string, std::shared_ptr<Target>> const &all_targets) const;
 
 }; // class Target
 
