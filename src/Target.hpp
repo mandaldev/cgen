@@ -19,7 +19,7 @@ class Target
 	TargetType _type;
 
 	std::set<std::string> _src;
-	std::set<std::string> _dep;
+	std::vector<std::string> _dep;
 
 	bool _indirected_loaded = false;
 
@@ -36,7 +36,7 @@ public:
 
 	TargetType type() const;
 
-	std::set<std::string> dep() const;
+	std::vector<std::string> dep() const;
 
 	bool load_indirected(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
 

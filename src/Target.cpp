@@ -73,11 +73,13 @@ bool Target::load(Mas::Map const &target_mas)
 	}
 	it = target_mas.find(DEP);
 	if (it != target_mas.end()) {
-		auto emsg = load_string_set(it->second, _dep);
+		std::set<std::string> dep;
+		auto emsg = load_string_set(it->second, dep);
 		if (emsg.has_value()) {
 			std::cerr << "Error: invalid 'dep' of target '" << _name << "': " << emsg.value() << std::endl;
 			return false;
 		}
+		_dep = { dep.begin(), dep.end() };
 	}
 	return true;
 }
@@ -92,7 +94,7 @@ TargetType Target::type() const
 	return _type;
 }
 
-std::set<std::string> Target::dep() const
+std::vector<std::string> Target::dep() const
 {
 	return _dep;
 }
@@ -113,11 +115,7 @@ bool Target::load_indirected(std::map<std::string, std::shared_ptr<Target>> cons
 			return false;
 		}
 		auto ddep = it->second->dep();
-		dep.insert(ddep.begin(), ddep.end());
-	}
-	if (dep.count(_name)) {
-		std::cerr << "Error: dep loop found of target " << _name << std::endl;
-		return false;
+		dep.insert(dep.end(), ddep.begin(), ddep.end());
 	}
 	_dep = dep;
 	return true;
@@ -133,30 +131,12 @@ bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targe
 	default:
 		return false;
 	}
-	std::vector<std::string> dep_implicit, dep_order_only;
+	std::vector<std::pair<bool, std::string>> deps;
 	for (auto &d : _dep) {
 		auto it = all_targets.find(d);
 		if (it != all_targets.end()) {
-			switch (it->second->type()) {
-			case TargetType::StaticLibrary:
-				dep_implicit.push_back(d);
-				break;
-			case TargetType::Executable:
-			case TargetType::DynamicLibrary:
-			default:
-				dep_order_only.push_back(d);
-				break;
-			}
+			deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
 		}
 	}
-	return gen_ninja_target_build(
-		"debug",
-		_type,
-		_name,
-		_src,
-		dep_implicit,
-		dep_order_only,
-		"-std=" + _std,
-		""
-	);
+	return gen_ninja_target_build("debug", _type, _name, _src, deps, "-std=" + _std, "");
 }

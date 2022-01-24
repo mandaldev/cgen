@@ -47,39 +47,28 @@ bool gen_ninja_target_build(
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,
-	std::vector<std::string> const &dep_implicit,
-	std::vector<std::string> const &dep_order_only,
+	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
 	std::string const &extra_cflags,
 	std::string const &extra_lflags
 )
 {
 	std::string cflags = extra_cflags;
-	std::string lflags;
-	std::string deps;
-	std::string script;
-	std::set<std::string> links;
-	if (dep_implicit.size()) {
-		deps = " |";
-		for (auto &d : dep_implicit) {
-			links.insert(d);
-			deps += " _phony_" + d;
+	std::string lflags = extra_lflags;
+	std::string deps_implicit, deps_order_only;
+	bool has_implicit = false, has_order_only = false;
+	if (dep.size()) {
+		deps_implicit = " |";
+		deps_order_only = " ||";
+		for (auto &d : dep) {
+			if (d.first) {
+				has_implicit = true;
+				deps_implicit += " _phony_" + d.second;
+			} else {
+				has_order_only = true;
+				deps_order_only += " _phony_" + d.second;
+			}
+			lflags += " -l" + d.second;
 		}
-	}
-	if (dep_order_only.size()) {
-		deps = " ||";
-		for (auto &d : dep_order_only) {
-			links.insert(d);
-			deps += " _phony_" + d;
-		}
-	}
-	for (auto &l : links) {
-		lflags += " -l" + l;
-	}
-	// reverse them, make sure linker finds all symbles
-	for (auto it = links.rbegin(); it != links.rend(); it++) {
-		lflags += " -l" + *it;
-	}
-	if (deps.size()) {
 		lflags += " -L.";
 	}
 	if (type == TargetType::StaticLibrary) {
@@ -103,6 +92,7 @@ bool gen_ninja_target_build(
 		link_rule = NINJA_RULE_LINK_DLIB;
 		break;
 	}
+	std::string script;
 	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + cflags + "\n";
 	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + lflags + "\n";
 	script += "\n";
@@ -120,7 +110,15 @@ bool gen_ninja_target_build(
 		script += "build " + s + ".o: " + NINJA_RULE_COMPILE + " ../../" + s + "\n";
 		obj_list += s + ".o ";
 	}
-	script += "build " + out_name + ": " + link_rule + " " + obj_list + deps + "\n";
+	script += "build " + out_name + ": " + link_rule + " " + obj_list;
+	if (has_implicit) {
+		script += deps_implicit;
+	}
+	if (has_order_only) {
+		script += deps_order_only;
+	}
+	script += "\n";
+
 	script += "build _phony_" + name + ": phony " + out_name + "\n";
 	script += "default _phony_" + name + "\n";
 
