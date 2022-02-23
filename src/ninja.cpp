@@ -53,7 +53,7 @@ bool gen_ninja_target_build(
 )
 {
 	std::string cflags = extra_cflags;
-	std::string lflags = extra_lflags;
+	std::string lflags;
 	std::string deps_implicit, deps_order_only;
 	bool has_implicit = false, has_order_only = false;
 	if (dep.size()) {
@@ -71,11 +71,7 @@ bool gen_ninja_target_build(
 		}
 		lflags += " -L.";
 	}
-	if (type == TargetType::StaticLibrary) {
-		lflags = extra_lflags;
-	} else {
-		lflags = extra_lflags + lflags;
-	}
+	lflags = extra_lflags + lflags;
 	std::string out_name, link_rule;
 	switch (type) {
 	case TargetType::Executable:
