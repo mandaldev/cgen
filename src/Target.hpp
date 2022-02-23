@@ -20,6 +20,7 @@ class Target
 
 	std::set<std::string> _src;
 	std::vector<std::string> _dep;
+	std::vector<std::string> _pkg; // pkg-conf
 
 	bool _indirected_loaded = false;
 

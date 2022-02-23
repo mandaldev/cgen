@@ -1,6 +1,7 @@
 #include "Target.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
+#include "xo/exec.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -11,6 +12,7 @@ static const auto STD = "std";
 static const auto TYPE = "type";
 static const auto SRC = "src";
 static const auto DEP = "dep";
+static const auto PKGCONF = "pkgconf";
 
 static std::optional<std::string> load_string_set(Mas::Value const &mas, std::set<std::string> &set)
 {
@@ -81,6 +83,16 @@ bool Target::load(Mas::Map const &target_mas)
 		}
 		_dep = { dep.begin(), dep.end() };
 	}
+	it = target_mas.find(PKGCONF);
+	if (it != target_mas.end()) {
+		std::set<std::string> pkg;
+		auto emsg = load_string_set(it->second, pkg);
+		if (emsg.has_value()) {
+			std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "': " << emsg.value() << std::endl;
+			return false;
+		}
+		_pkg = { pkg.begin(), pkg.end() };
+	}
 	return true;
 }
 
@@ -138,5 +150,27 @@ bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targe
 			deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
 		}
 	}
-	return gen_ninja_target_build("debug", _type, _name, _src, deps, "-std=" + _std, "");
+	std::string pkg_cflags, pkg_lflags;
+	for (auto &p : _pkg) {
+		std::string cflags, lflags, stderr_content;
+		if (XO::exec("pkg-config --cflags " + p, "build/debug/cgen_exec", cflags, stderr_content)) {
+			std::cerr << "Error: pkg-config for " << p << "failed: " << stderr_content << std::endl;
+			return false;
+		}
+		if (XO::exec("pkg-config --libs " + p, "build/debug/cgen_exec", lflags, stderr_content)) {
+			std::cerr << "Error: pkg-config for " << p << "failed: " << stderr_content << std::endl;
+			return false;
+		}
+		pkg_cflags += " " + trim_string(cflags);
+		pkg_lflags += " " + trim_string(lflags);
+	}
+	return gen_ninja_target_build(
+		"debug",
+		_type,
+		_name,
+		_src,
+		deps,
+		"-std=" + _std + pkg_cflags,
+		pkg_lflags
+	);
 }

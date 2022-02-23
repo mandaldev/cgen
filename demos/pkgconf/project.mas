@@ -1,0 +1,22 @@
+{
+  name "PkgconfTest"
+  author "Mandal Dev"
+  license "GPL-3.0"
+
+  target [
+    {
+      name "pkgconf"
+      language "c++"
+      std "c++17"
+      type "exe"
+
+      src [
+        "src/main.cpp"
+      ]
+
+      pkgconf [
+        "glfw3"
+      ]
+    }
+  ]
+}

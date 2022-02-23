@@ -41,6 +41,7 @@
 
       src [
         "src/xo/CommandLine.cpp"
+        "src/xo/exec.cpp"
       ]
     }
   ]
