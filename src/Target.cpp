@@ -135,6 +135,15 @@ bool Target::load_indirected(std::map<std::string, std::shared_ptr<Target>> cons
 
 bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targets) const
 {
+	std::string cc;
+	switch (_lang) {
+	case Lang::C:
+		cc = "gcc";
+		break;
+	case Lang::CPlusPlus:
+		cc = "g++";
+		break;
+	}
 	switch (_type) {
 	case TargetType::Executable:
 	case TargetType::StaticLibrary:
@@ -166,6 +175,7 @@ bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targe
 	}
 	return gen_ninja_target_build(
 		"debug",
+		cc,
 		_type,
 		_name,
 		_src,

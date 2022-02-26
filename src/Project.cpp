@@ -135,7 +135,7 @@ bool Project::gen() const
 			return false;
 		}
 	}
-	auto script = gen_ninja_build("g++", "-Wall -g", generated);
+	auto script = gen_ninja_build("-Wall -g", generated);
 
 	std::ofstream fs;
 	std::string fname = "./build/debug/" + NINJA_BUILD;

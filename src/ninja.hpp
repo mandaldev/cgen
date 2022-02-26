@@ -54,7 +54,6 @@ static std::string const NINJA_RULE_LINK_DLIB = "link_dlib";
 /// `gcc_cmd`: gcc cmd to use, gcc or g++
 /// `include_names`: target names
 std::string gen_ninja_build(
-	std::string const &gcc_cmd,
 	std::string const &cflags,
 	std::set<std::string> const &subninja_names
 );
@@ -62,6 +61,7 @@ std::string gen_ninja_build(
 /// generate build script for one target
 bool gen_ninja_target_build(
 	std::string const &profile, /// debug or release
+	std::string const &cc,
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,

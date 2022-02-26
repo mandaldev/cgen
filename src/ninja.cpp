@@ -3,17 +3,17 @@
 #include <fstream>
 #include <filesystem>
 
-static std::string gen_ninja_rules(std::string const &gcc_cmd)
+static std::string gen_ninja_rules()
 {
 	std::string rules;
 	rules += "rule " + NINJA_RULE_COMPILE + "\n"
 		 "    deps = gcc\n"
 		 "    depfile = $out.d\n"
-		 "    command = " + gcc_cmd + " -c -o $out $in $cflags -MD -MF $out.d\n"
+		 "    command = $CC -c -o $out $in $cflags -MD -MF $out.d\n"
 		 "\n"
 
 		 "rule " + NINJA_RULE_LINK_EXE + "\n"
-		 "    command = " + gcc_cmd + " -o $out $in $lflags\n"
+		 "    command = $CC -o $out $in $lflags\n"
 		 "\n"
 
 		 "rule " + NINJA_RULE_LINK_SLIB + "\n"
@@ -21,21 +21,20 @@ static std::string gen_ninja_rules(std::string const &gcc_cmd)
 		 "\n"
 
 		 "rule " + NINJA_RULE_LINK_DLIB + "\n"
-		 "    command = " + gcc_cmd + " -shared -o $out $in $lflags\n"
+		 "    command = $CC -shared -o $out $in $lflags\n"
 		 "\n"
 		 ;
 	return rules;
 }
 
 std::string gen_ninja_build(
-	std::string const &gcc_cmd,
 	std::string const &cflags,
 	std::set<std::string> const &subninja_names
 )
 {
 	std::string build;
 	build += NINJA_GLOBAL_CFLAGS + " = " + cflags + "\n\n";
-	build += gen_ninja_rules(gcc_cmd);
+	build += gen_ninja_rules();
 	for (auto &name : subninja_names) {
 		build += "subninja " + name + NINJA_BUILD_EXT + "\n";
 	}
@@ -44,6 +43,7 @@ std::string gen_ninja_build(
 
 bool gen_ninja_target_build(
 	std::string const &profile, // debug or release
+	std::string const &cc,
 	TargetType type,
 	std::string const &name,
 	std::set<std::string> const &src,
@@ -91,6 +91,7 @@ bool gen_ninja_target_build(
 	std::string script;
 	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + cflags + "\n";
 	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + lflags + "\n";
+	script += "CC = " + cc + "\n";
 	script += "\n";
 
 	std::string obj_list;
