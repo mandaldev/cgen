@@ -52,7 +52,7 @@ bool gen_ninja_target_build(
 	std::string const &extra_lflags
 )
 {
-	std::string cflags = extra_cflags;
+	std::string cflags;
 	std::string lflags;
 	std::string deps_implicit, deps_order_only;
 	bool has_implicit = false, has_order_only = false;
@@ -71,7 +71,6 @@ bool gen_ninja_target_build(
 		}
 		lflags += " -L.";
 	}
-	lflags = extra_lflags + lflags;
 	std::string out_name, link_rule;
 	switch (type) {
 	case TargetType::Executable:
@@ -88,6 +87,9 @@ bool gen_ninja_target_build(
 		link_rule = NINJA_RULE_LINK_DLIB;
 		break;
 	}
+	cflags += extra_cflags;
+	lflags += extra_lflags;
+
 	std::string script;
 	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + cflags + "\n";
 	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + lflags + "\n";

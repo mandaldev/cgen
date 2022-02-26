@@ -13,6 +13,8 @@ static const auto TYPE = "type";
 static const auto SRC = "src";
 static const auto DEP = "dep";
 static const auto PKGCONF = "pkgconf";
+static const auto EXTRA_CFLAGS = "extra_cflags";
+static const auto EXTRA_LFLAGS = "extra_lflags";
 
 static std::optional<std::string> load_string_set(Mas::Value const &mas, std::set<std::string> &set)
 {
@@ -42,6 +44,8 @@ bool Target::load(Mas::Map const &target_mas)
 	Mas::get_string(target_mas, LANG, lang);
 	Mas::get_string(target_mas, STD, _std);
 	Mas::get_string(target_mas, TYPE, type);
+	Mas::get_string(target_mas, EXTRA_CFLAGS, _extra_cflags);
+	Mas::get_string(target_mas, EXTRA_LFLAGS, _extra_lflags);
 	if (lang == "c") {
 		_lang = Lang::C;
 	} else if (lang == "c++") {
@@ -180,7 +184,7 @@ bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targe
 		_name,
 		_src,
 		deps,
-		"-std=" + _std + pkg_cflags,
-		pkg_lflags
+		"-std=" + _std + pkg_cflags + " " + _extra_cflags,
+		pkg_lflags + " " + _extra_lflags
 	);
 }

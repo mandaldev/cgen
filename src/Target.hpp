@@ -22,6 +22,9 @@ class Target
 	std::vector<std::string> _dep;
 	std::vector<std::string> _pkg; // pkg-conf
 
+	std::string _extra_cflags;
+	std::string _extra_lflags;
+
 	bool _indirected_loaded = false;
 
 public:
