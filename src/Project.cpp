@@ -12,9 +12,9 @@ static const auto EMAIL = "email";
 static const auto LICENSE = "license";
 static const auto TARGET = "target";
 
-static bool load_target(Mas::Map const &m, std::map<std::string, std::shared_ptr<Target>> &targets)
+static bool load_target(Project *project, Mas::Map const &m, std::map<std::string, std::shared_ptr<Target>> &targets)
 {
-	auto target = std::make_shared<Target>();
+	auto target = std::make_shared<Target>(project);
 	if (!target->load(m)) {
 		std::cerr
 			<< "Load target failed"
@@ -42,6 +42,16 @@ static bool load_target(Mas::Map const &m, std::map<std::string, std::shared_ptr
 	return false;
 }
 
+std::map<std::string, std::shared_ptr<Target>> const &Project::targets() const
+{
+	return _targets;
+}
+
+Pkgconf *Project::pkgconf()
+{
+	return &_pkgconf;
+}
+
 bool Project::load(Mas::Map const &project_mas)
 {
 	Mas::get_string(project_mas, NAME, _name);
@@ -64,7 +74,7 @@ bool Project::load(Mas::Map const &project_mas)
 					<< std::endl;
 				return false;
 			}
-			if (!load_target(m.map_or({}), _targets)) {
+			if (!load_target(this, m.map_or({}), _targets)) {
 				return false;
 			}
 		}
@@ -119,7 +129,7 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 			return false;
 		}
 	}
-	return target->gen(_targets);
+	return target->gen();
 }
 
 bool Project::gen() const

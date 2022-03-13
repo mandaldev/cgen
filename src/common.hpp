@@ -4,6 +4,8 @@
 #include <cctype>
 #include <algorithm>
 
+using namespace std::literals;
+
 enum class TargetType {
 	Executable,
 	StaticLibrary,
@@ -27,6 +29,25 @@ static inline std::string trim_string_right(std::string const &str)
 static inline std::string trim_string(std::string const &str)
 {
 	return trim_string_left(trim_string_right(str));
+}
+
+template <typename ItorFirst, typename ItorLast, typename Delimter>
+static inline std::string join_strings(ItorFirst begin, ItorLast end, Delimter const &delimter)
+{
+	auto ret = ""s;
+	if (begin != end) {
+		ret = *begin++;
+	}
+	while (begin != end) {
+		ret += delimter;
+		ret += *begin++;
+	}
+	return ret;
+}
+
+static inline std::string join_strings(std::vector<std::string> const &strs, char delimter)
+{
+	return join_strings(strs.begin(), strs.end(), delimter);
 }
 
 #endif

@@ -5,6 +5,8 @@
 #include <set>
 #include <memory>
 
+class Project;
+
 /// a cgen target
 class Target
 {
@@ -12,6 +14,8 @@ class Target
 		C,
 		CPlusPlus,
 	}; // enum class Lang
+
+	Project *_project = nullptr;
 
 	std::string _name;
 	Lang _lang;
@@ -29,7 +33,7 @@ class Target
 
 public:
 
-	Target() = default;
+	Target(Project *project);
 	Target(Target const &) = delete;
 	Target &operator=(Target const &) = delete;
 
@@ -45,7 +49,7 @@ public:
 	bool load_indirected(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
 
 	/// generate build scripts
-	bool gen(std::map<std::string, std::shared_ptr<Target>> const &all_targets) const;
+	bool gen() const;
 
 }; // class Target
 

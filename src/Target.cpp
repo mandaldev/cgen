@@ -1,7 +1,7 @@
 #include "Target.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
-#include "xo/exec.hpp"
+#include "Project.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -35,6 +35,11 @@ static std::optional<std::string> load_string_set(Mas::Value const &mas, std::se
 		set.insert(path);
 	}
 	return {};
+}
+
+Target::Target(Project *project)
+: _project(project)
+{
 }
 
 bool Target::load(Mas::Map const &target_mas)
@@ -137,7 +142,7 @@ bool Target::load_indirected(std::map<std::string, std::shared_ptr<Target>> cons
 	return true;
 }
 
-bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targets) const
+bool Target::gen() const
 {
 	std::string cc;
 	switch (_lang) {
@@ -158,24 +163,20 @@ bool Target::gen(std::map<std::string, std::shared_ptr<Target>> const &all_targe
 	}
 	std::vector<std::pair<bool, std::string>> deps;
 	for (auto &d : _dep) {
-		auto it = all_targets.find(d);
-		if (it != all_targets.end()) {
+		auto it = _project->targets().find(d);
+		if (it != _project->targets().end()) {
 			deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
 		}
 	}
 	std::string pkg_cflags, pkg_lflags;
 	for (auto &p : _pkg) {
-		std::string cflags, lflags, stderr_content;
-		if (XO::exec("pkg-config --cflags " + p, "build/debug/cgen_exec", cflags, stderr_content)) {
-			std::cerr << "Error: pkg-config for " << p << "failed: " << stderr_content << std::endl;
+		if (!_project->pkgconf()->find(p)) {
+			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg" << std::endl;
 			return false;
 		}
-		if (XO::exec("pkg-config --libs " + p, "build/debug/cgen_exec", lflags, stderr_content)) {
-			std::cerr << "Error: pkg-config for " << p << "failed: " << stderr_content << std::endl;
-			return false;
-		}
-		pkg_cflags += " " + trim_string(cflags);
-		pkg_lflags += " " + trim_string(lflags);
+		std::string cflags, lflags;
+		pkg_cflags += " " + _project->pkgconf()->cflags(p);
+		pkg_lflags += " " + _project->pkgconf()->libs(p);
 	}
 	return gen_ninja_target_build(
 		"debug",
