@@ -31,6 +31,7 @@ int exec(std::string const &cmd, std::string const &tmpname, std::string &stdout
 		return 1;
 	}
 	cmdline += " &> " + err_name + " > " + out_name;
+	cmdline = "bash -c '" + cmdline + "'";
 	auto ret = std::system(cmdline.c_str());
 	if (!ret) {
 		try {
