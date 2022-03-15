@@ -59,6 +59,7 @@ bool gen_ninja_target_build(
 	if (dep.size()) {
 		deps_implicit = " |";
 		deps_order_only = " ||";
+		lflags += " -L. ";
 		for (auto &d : dep) {
 			if (d.first) {
 				has_implicit = true;
@@ -67,9 +68,8 @@ bool gen_ninja_target_build(
 				has_order_only = true;
 				deps_order_only += " _phony_" + d.second;
 			}
-			lflags += " -l" + d.second;
+			lflags += "-l" + d.second + " ";
 		}
-		lflags += " -L.";
 	}
 	std::string out_name, link_rule;
 	switch (type) {
