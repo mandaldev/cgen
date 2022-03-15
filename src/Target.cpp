@@ -42,6 +42,31 @@ Target::Target(Project *project)
 {
 }
 
+bool Target::load_pkgconfs(Mas::Map const &target_mas)
+{
+	auto it = target_mas.find(PKGCONF);
+	if (it == target_mas.end()) {
+		return true;
+	}
+	std::set<std::string> pkg;
+	auto emsg = load_string_set(it->second, pkg);
+	if (emsg.has_value()) {
+		std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "': " << emsg.value() << std::endl;
+		return false;
+	}
+	_pkg = { pkg.begin(), pkg.end() };
+	
+	for (auto &p : _pkg) {
+		if (!_project->pkgconf()->find(p)) {
+			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg" << std::endl;
+			return false;
+		}
+		_pkg_cflags += " " + _project->pkgconf()->cflags(p);
+		_pkg_lflags += " " + _project->pkgconf()->libs(p);
+	}
+	return true;
+}
+
 bool Target::load(Mas::Map const &target_mas)
 {
 	std::string lang, type;
@@ -92,17 +117,7 @@ bool Target::load(Mas::Map const &target_mas)
 		}
 		_dep = { dep.begin(), dep.end() };
 	}
-	it = target_mas.find(PKGCONF);
-	if (it != target_mas.end()) {
-		std::set<std::string> pkg;
-		auto emsg = load_string_set(it->second, pkg);
-		if (emsg.has_value()) {
-			std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "': " << emsg.value() << std::endl;
-			return false;
-		}
-		_pkg = { pkg.begin(), pkg.end() };
-	}
-	return true;
+	return load_pkgconfs(target_mas);
 }
 
 std::string Target::name() const
@@ -161,31 +176,30 @@ bool Target::gen() const
 	default:
 		return false;
 	}
+
+	auto cflags = "-std=" + _std + " " + external_cflags();
+	auto lflags = external_lflags();
+
 	std::vector<std::pair<bool, std::string>> deps;
 	for (auto &d : _dep) {
 		auto it = _project->targets().find(d);
 		if (it != _project->targets().end()) {
 			deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
+			cflags += " " + it->second->external_cflags();
+			lflags += " " + it->second->external_lflags();
 		}
 	}
-	std::string pkg_cflags, pkg_lflags;
-	for (auto &p : _pkg) {
-		if (!_project->pkgconf()->find(p)) {
-			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg" << std::endl;
-			return false;
-		}
-		std::string cflags, lflags;
-		pkg_cflags += " " + _project->pkgconf()->cflags(p);
-		pkg_lflags += " " + _project->pkgconf()->libs(p);
-	}
-	return gen_ninja_target_build(
-		"debug",
-		cc,
-		_type,
-		_name,
-		_src,
-		deps,
-		"-std=" + _std + pkg_cflags + " " + _extra_cflags,
-		pkg_lflags + " " + _extra_lflags
-	);
+	cflags = trim_string(cflags);
+	lflags = trim_string(lflags);
+	return gen_ninja_target_build("debug", cc, _type, _name, _src, deps, cflags, lflags);
+}
+
+std::string Target::external_cflags() const
+{
+	return trim_string(_pkg_cflags + " " + _extra_cflags);
+}
+
+std::string Target::external_lflags() const
+{
+	return trim_string(_pkg_lflags + " " + _extra_lflags);
 }
