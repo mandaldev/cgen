@@ -81,9 +81,9 @@ bool Pkgconf::find(std::string const &pkg_name)
 	}
 
 	PkgInfo info;
-	info.cflags = join_strings(cast_string_fragment_list(pkg->cflags), ' ');
-	info.libs = join_strings(cast_string_fragment_list(pkg->libs), ' ');
-	info.libs_private = join_strings(cast_string_fragment_list(pkg->libs_private), ' ');
+	info.cflags = join_strings(cast_string_fragment_list(pkg->cflags));
+	info.libs = join_strings(cast_string_fragment_list(pkg->libs));
+	info.libs_private = join_strings(cast_string_fragment_list(pkg->libs_private));
 	info.requires = cast_dependency_fragment_list(pkg->required);
 	info.requires_private = cast_dependency_fragment_list(pkg->requires_private);
 	_pkgs.insert({ pkg_name, info });

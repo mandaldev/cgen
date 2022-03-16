@@ -177,21 +177,31 @@ bool Target::gen() const
 		return false;
 	}
 
-	auto cflags = "-std=" + _std + " " + external_cflags();
-	auto lflags = external_lflags();
+	std::vector<std::string> cflags;
+	std::vector<std::string> lflags;
+	cflags.push_back("-std=" + _std);
+	cflags.push_back(external_cflags());
+	lflags.push_back(external_lflags());
 
 	std::vector<std::pair<bool, std::string>> deps;
 	for (auto &d : _dep) {
 		auto it = _project->targets().find(d);
 		if (it != _project->targets().end()) {
 			deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
-			cflags += " " + it->second->external_cflags();
-			lflags += " " + it->second->external_lflags();
+			cflags.push_back(it->second->external_cflags());
+			lflags.push_back(it->second->external_lflags());
 		}
 	}
-	cflags = trim_string(cflags);
-	lflags = trim_string(lflags);
-	return gen_ninja_target_build("debug", cc, _type, _name, _src, deps, cflags, lflags);
+	return gen_ninja_target_build(
+		"debug",
+		cc,
+		_type,
+		_name,
+		_src,
+		deps,
+		join_strings(cflags),
+		join_strings(lflags)
+	);
 }
 
 std::string Target::external_cflags() const

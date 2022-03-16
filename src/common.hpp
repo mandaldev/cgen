@@ -31,21 +31,23 @@ static inline std::string trim_string(std::string const &str)
 	return trim_string_left(trim_string_right(str));
 }
 
+/// join strings with `delimter`
 template <typename ItorFirst, typename ItorLast, typename Delimter>
 static inline std::string join_strings(ItorFirst begin, ItorLast end, Delimter const &delimter)
 {
-	auto ret = ""s;
-	if (begin != end) {
-		ret = *begin++;
+	if (begin == end) {
+		return "";
 	}
-	while (begin != end) {
+	auto ret = *begin;
+	while (++begin != end) {
 		ret += delimter;
-		ret += *begin++;
+		ret += *begin;
 	}
 	return ret;
 }
 
-static inline std::string join_strings(std::vector<std::string> const &strs, char delimter)
+/// join strings with `delimter` (default as one space)
+static inline std::string join_strings(std::vector<std::string> const &strs, std::string const &delimter = " "s)
 {
 	return join_strings(strs.begin(), strs.end(), delimter);
 }

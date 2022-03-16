@@ -1,4 +1,5 @@
 #include "ninja.hpp"
+#include "common.hpp"
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -52,14 +53,14 @@ bool gen_ninja_target_build(
 	std::string const &extra_lflags
 )
 {
-	std::string cflags;
-	std::string lflags;
+	std::vector<std::string> cflags;
+	std::vector<std::string> lflags;
 	std::string deps_implicit, deps_order_only;
 	bool has_implicit = false, has_order_only = false;
 	if (dep.size()) {
 		deps_implicit = " |";
 		deps_order_only = " ||";
-		lflags += " -L. ";
+		lflags.push_back("-L.");
 		for (auto &d : dep) {
 			if (d.first) {
 				has_implicit = true;
@@ -68,7 +69,7 @@ bool gen_ninja_target_build(
 				has_order_only = true;
 				deps_order_only += " _phony_" + d.second;
 			}
-			lflags += "-l" + d.second + " ";
+			lflags.push_back("-l" + d.second);
 		}
 	}
 	std::string out_name, link_rule;
@@ -82,17 +83,17 @@ bool gen_ninja_target_build(
 		link_rule = NINJA_RULE_LINK_SLIB;
 		break;
 	case TargetType::DynamicLibrary:
-		cflags += " -fPIC";
+		cflags.push_back("-fPIC");
 		out_name = "lib" + name + ".so";
 		link_rule = NINJA_RULE_LINK_DLIB;
 		break;
 	}
-	cflags += extra_cflags;
-	lflags += extra_lflags;
+	cflags.push_back(extra_cflags);
+	lflags.push_back(extra_lflags);
 
 	std::string script;
-	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + cflags + "\n";
-	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + lflags + "\n";
+	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + join_strings(cflags) + "\n";
+	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + join_strings(lflags) + "\n";
 	script += "CC = " + cc + "\n";
 	script += "\n";
 
