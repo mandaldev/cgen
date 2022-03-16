@@ -44,14 +44,17 @@ int Driver::run()
 		return 0;
 	}
 	if (!_cmdline.is_valid()) {
-		std::cerr <<
-			"Invalid option or argument, see Usage"
-			<< std::endl
-			<< std::endl;
+		std::cerr << "Invalid option or argument, see Usage\n\n";
 		help();
 		return 1;
 	}
-	return _cmd[_argv[1]]();
+	auto cmd = _argv[1];
+	auto it = _cmd.find(cmd);
+	if (it != _cmd.end()) {
+		return it->second();
+	}
+	std::cerr << "Unknown commond: " << cmd << std::endl;
+	return 1;
 }
 
 int Driver::help()
