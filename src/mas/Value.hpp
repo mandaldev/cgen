@@ -5,6 +5,7 @@
 #include <string>
 #include <variant>
 #include <optional>
+#include <sstream>
 
 /// A simple Mas text.
 ///
@@ -31,6 +32,30 @@ using String = std::string;
 using Array = std::vector<Value>;
 /// Mas map type, map of String-Value pair
 using Map = std::map<String, Value>;
+
+template <typename T>
+static inline std::string to_string(T const &v)
+{
+	std::ostringstream oss;
+	oss << v;
+	return oss.str();
+}
+
+template <typename T>
+static inline bool from_string(std::string const &str, T &v)
+{
+	std::istringstream iss{ str };
+	iss >> v;
+	return iss.good();
+}
+
+template <typename T>
+static inline T from_string(std::string const &str)
+{
+	T v{};
+	from_string(str, v);
+	return v;
+}
 
 /// encode option struct.
 /// default is best for performence
@@ -88,7 +113,42 @@ public:
 		return std::visit(visitor, _var);
 	}
 
+	// format `v` to a string value
+	template <typename T>
+	String &as_any(T const &v)
+	{
+		return as_string(to_string(v));
+	}
+
+	// parse any type data from a string value
+	template <typename T>
+	bool to_any(T &v) const
+	{
+		return from_string(string_or(""), v);
+	}
+
+	// parse any type data from a string value
+	template <typename T>
+	T to_any() const
+	{
+		T v{};
+		to_any(v);
+		return v;
+	}
 }; // class Value
+
+template <>
+inline String &Value::as_any<String>(String const &v)
+{
+	return as_string(v);
+}
+
+template <>
+inline bool Value::to_any<String>(String &v) const
+{
+	v = string_or(v);
+	return is_string();
+}
 
 bool get_string(Mas::Map const &m, std::string const &key, std::string &value);
 
