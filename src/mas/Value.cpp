@@ -158,7 +158,9 @@ public:
 			}
 		}
 		_output.push_back('"');
-		endline();
+		if (!is_key) {
+			endline();
+		}
 	}
 
 private:
