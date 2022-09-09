@@ -38,21 +38,20 @@
 ///   `build.ninja` will also define rules to build the whole project.
 
 /// ninja scripts extension
-static std::string const NINJA_BUILD_EXT = ".ninja";
+static constexpr auto NINJA_BUILD_EXT = ".ninja";
 /// ninja build entry script
-static std::string const NINJA_BUILD = "build.ninja";
+static constexpr auto NINJA_BUILD = "build.ninja";
 
-static std::string const NINJA_GLOBAL_CFLAGS = "g_cflags";
-static std::string const NINJA_GLOBAL_LFLAGS = "g_lflags";
-static std::string const NINJA_RULE_COMPILE = "compile";
-static std::string const NINJA_RULE_LINK_EXE = "link_exe";
-static std::string const NINJA_RULE_LINK_SLIB = "link_slib";
-static std::string const NINJA_RULE_LINK_DLIB = "link_dlib";
+static constexpr auto NINJA_GLOBAL_CFLAGS = "g_cflags";
+static constexpr auto NINJA_GLOBAL_LFLAGS = "g_lflags";
+static constexpr auto NINJA_RULE_COMPILE = "compile";
+static constexpr auto NINJA_RULE_LINK_EXE = "link_exe";
+static constexpr auto NINJA_RULE_LINK_SLIB = "link_slib";
+static constexpr auto NINJA_RULE_LINK_DLIB = "link_dlib";
 
 /// generate ninja build entry script
 /// `cflags`: global cflags
-/// `gcc_cmd`: gcc cmd to use, gcc or g++
-/// `include_names`: target names
+/// `subninja_names`: target names
 std::string gen_ninja_build(
 	std::string const &cflags,
 	std::set<std::string> const &subninja_names

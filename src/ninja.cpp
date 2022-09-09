@@ -7,7 +7,7 @@
 static std::string gen_ninja_rules()
 {
 	std::string rules;
-	rules += "rule " + NINJA_RULE_COMPILE + "\n"
+	rules += "rule "s + NINJA_RULE_COMPILE + "\n"
 		 "    deps = gcc\n"
 		 "    depfile = $out.d\n"
 		 "    command = $CC -c -o $out $in $cflags -MD -MF $out.d\n"
@@ -34,7 +34,7 @@ std::string gen_ninja_build(
 )
 {
 	std::string build;
-	build += NINJA_GLOBAL_CFLAGS + " = " + cflags + "\n\n";
+	build += NINJA_GLOBAL_CFLAGS + " = "s + cflags + "\n\n";
 	build += gen_ninja_rules();
 	for (auto &name : subninja_names) {
 		build += "subninja " + name + NINJA_BUILD_EXT + "\n";
@@ -92,8 +92,8 @@ bool gen_ninja_target_build(
 	lflags.push_back(extra_lflags);
 
 	std::string script;
-	script += "cflags = $" + NINJA_GLOBAL_CFLAGS + " " + join_strings(cflags) + "\n";
-	script += "lflags = $" + NINJA_GLOBAL_LFLAGS + " " + join_strings(lflags) + "\n";
+	script += "cflags = $"s + NINJA_GLOBAL_CFLAGS + " " + join_strings(cflags) + "\n";
+	script += "lflags = $"s + NINJA_GLOBAL_LFLAGS + " " + join_strings(lflags) + "\n";
 	script += "CC = " + cc + "\n";
 	script += "\n";
 

@@ -98,7 +98,7 @@ bool Project::build_target(std::string const &target_name)
 
 bool Project::configure() const
 {
-	auto ninja_build = "./build/debug/" + NINJA_BUILD;
+	auto ninja_build = "./build/debug/"s + NINJA_BUILD;
 	std::error_code ec;
 	std::filesystem::create_directories(std::filesystem::path(ninja_build).parent_path(), ec);
 	if (ec) {
@@ -148,7 +148,7 @@ bool Project::gen() const
 	auto script = gen_ninja_build("-Wall -g", generated);
 
 	std::ofstream fs;
-	std::string fname = "./build/debug/" + NINJA_BUILD;
+	std::string fname = "./build/debug/"s + NINJA_BUILD;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
 		std::cerr
