@@ -15,4 +15,6 @@ struct CdbItem
 
 using Cdb = std::vector<CdbItem>;
 
+bool gen_cdb_file(Cdb const &cdb, std::string const &dir);
+
 #endif

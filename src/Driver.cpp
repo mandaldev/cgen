@@ -1,5 +1,4 @@
 #include "Driver.hpp"
-#include "common.hpp"
 
 static bool chroot()
 {
@@ -106,9 +105,6 @@ int Driver::build()
 			<< std::endl;
 		return 1;
 	}
-	if (opt_cdb) {
-		gen_cdb(opt_cdb.value());
-	}
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
 		return project.build_all_targets() ? 0 : 1;
@@ -122,47 +118,4 @@ int Driver::build()
 		}
 	}
 	return 0;
-}
-
-int Driver::gen_cdb(Cdb const &cdb) const
-{
-	std::ofstream fs;
-	std::string fname = "./build/debug/compile_commands.json";
-	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
-	if (fs.fail()) {
-		std::cerr
-			<< "Failed to open file " << fname
-			<< std::endl;
-		return 1;
-	}
-	auto quote = '"';
-	bool first = true;
-	fs << "[\n";
-	for (auto &item : cdb) {
-		auto args = split_string(item.flags, " ");
-		for (auto &s : item.files) {
-			std::string obj;
-			if (first) {
-				first = false;
-			} else {
-				obj += ",";
-			}
-			obj += "{\"arguments\": [";
-			obj += quote + item.cmd + quote;
-			for (auto &&arg : args) {
-				obj += ",\"" + arg + quote;
-			}
-			obj += ",\"-o\",";
-			obj += quote + s + ".o" + quote;
-			obj += ",\"../../" + s + quote;
-			obj += "],\"directory\":";
-			obj += quote + std::filesystem::absolute("build/debug").string() + quote;
-			obj += ",\"file\":\"../../" + s + "\"}\n";
-			fs << obj;
-		}
-	}
-	fs << "]";
-	fs.close();
-	std::cerr << fname << " written\n";
-	return true;
 }

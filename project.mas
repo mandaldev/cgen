@@ -17,6 +17,7 @@
         "src/Target.cpp"
         "src/ninja.cpp"
         "src/pkgconf/pkgconf.cpp"
+        "src/Cdb.cpp"
       ]
 
       dep [

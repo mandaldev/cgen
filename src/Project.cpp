@@ -165,5 +165,9 @@ bool Project::gen(std::optional<Cdb> &opt_cdb) const
 	fs << script;
 	fs.close();
 	std::cerr << fname << " written\n";
+
+	if (opt_cdb) {
+		return gen_cdb_file(opt_cdb.value(), "build/debug");
+	}
 	return true;
 }

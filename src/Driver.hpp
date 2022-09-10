@@ -22,8 +22,6 @@ class Driver
 
 	int build();
 
-	int gen_cdb(Cdb const &cdb) const;
-
 public:
 
 	Driver(int argc, char const *const *argv);
