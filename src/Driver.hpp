@@ -22,7 +22,7 @@ class Driver
 
 	int build();
 
-	int dot();
+	int gen_cdb(Cdb const &cdb) const;
 
 public:
 

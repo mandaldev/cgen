@@ -34,7 +34,6 @@ Driver::Driver(int argc, char const *const *argv)
 {
 	_cmd["help"] = [&]() { return help(); };
 	_cmd["build"] = [&]() { return build(); };
-	_cmd["dot"] = [&]() { return dot(); };
 }
 
 int Driver::run()
@@ -64,9 +63,11 @@ int Driver::help()
 		<< "	cgen <command> [<args>]" << std::endl
 		<< std::endl
 		<< "Commands:" << std::endl
-		<< "	build [<target>]	build target" << std::endl
-		<< "	dot			generate dot files" << std::endl
-		<< "	help [<command>]	print help info [for specific command]" << std::endl
+		<< "	build [options] [<target>]	build target" << std::endl
+		<< "	help [<command>]		print help info [for specific command]" << std::endl
+		<< std::endl
+		<< "'build' options:" << std::endl
+		<< "	-cdb			generate compilation databse file: compile_commands.json" << std::endl
 		<< std::endl
 	;
 	return 0;
@@ -78,7 +79,7 @@ int Driver::build()
 		std::cerr << "Not a cgen project path" << std::endl;
 		return 1;
 	}
-	
+
 	auto mas = load_project_mas();
 	if (!mas.has_value() || !mas.value().is_map()) {
 		std::cerr
@@ -86,7 +87,7 @@ int Driver::build()
 			<< std::endl;
 		return 1;
 	}
-	
+
 	Project project;
 	if (!project.load(mas.value().as_map())) {
 		std::cerr
@@ -95,13 +96,20 @@ int Driver::build()
 		return 1;
 	}
 
-	auto targets_name = _cmdline.get_arguments();
-	if (!project.configure()) {
+	std::optional<Cdb> opt_cdb;
+	if (_cmdline.has_switch("cdb")) {
+		opt_cdb = Cdb();
+	}
+	if (!project.configure(opt_cdb)) {
 		std::cerr
 			<< "Failed to configure project"
 			<< std::endl;
 		return 1;
 	}
+	if (opt_cdb) {
+		gen_cdb(opt_cdb.value());
+	}
+	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
 		return project.build_all_targets() ? 0 : 1;
 	}
@@ -116,7 +124,45 @@ int Driver::build()
 	return 0;
 }
 
-int Driver::dot()
+int Driver::gen_cdb(Cdb const &cdb) const
 {
-	return 0;
+	std::ofstream fs;
+	std::string fname = "./build/debug/compile_commands.json";
+	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
+	if (fs.fail()) {
+		std::cerr
+			<< "Failed to open file " << fname
+			<< std::endl;
+		return 1;
+	}
+	auto quote = '"';
+	bool first = true;
+	fs << "[\n";
+	for (auto &item : cdb) {
+		auto args = split_string(item.flags, " ");
+		for (auto &s : item.files) {
+			std::string obj;
+			if (first) {
+				first = false;
+			} else {
+				obj += ",";
+			}
+			obj += "{\"arguments\": [";
+			obj += quote + item.cmd + quote;
+			for (auto &&arg : args) {
+				obj += ",\"" + arg + quote;
+			}
+			obj += ",\"-o\",";
+			obj += quote + s + ".o" + quote;
+			obj += ",\"../../" + s + quote;
+			obj += "],\"directory\":";
+			obj += quote + std::filesystem::absolute("build/debug").string() + quote;
+			obj += ",\"file\":\"../../" + s + "\"}\n";
+			fs << obj;
+		}
+	}
+	fs << "]";
+	fs.close();
+	std::cerr << fname << " written\n";
+	return true;
 }

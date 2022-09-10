@@ -157,7 +157,7 @@ bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &
 	return true;
 }
 
-bool Target::gen() const
+bool Target::gen(std::optional<Cdb> &opt_cdb) const
 {
 	std::string cc;
 	switch (_lang) {
@@ -191,6 +191,15 @@ bool Target::gen() const
 			cflags.push_back(it->second->external_cflags());
 			lflags.push_back(it->second->external_lflags());
 		}
+	}
+	auto cflag = join_strings(cflags);
+	auto lflag = join_strings(lflags);
+	if (opt_cdb) {
+		CdbItem item;
+		item.cmd = cc;
+		item.flags = cflag;
+		item.files = _src;
+		opt_cdb.value().push_back(item);
 	}
 	return gen_ninja_target_build(
 		"debug",

@@ -96,7 +96,7 @@ bool Project::build_target(std::string const &target_name)
 	return false;
 }
 
-bool Project::configure() const
+bool Project::configure(std::optional<Cdb> &opt_cdb) const
 {
 	auto ninja_build = "./build/debug/"s + NINJA_BUILD;
 	std::error_code ec;
@@ -108,12 +108,12 @@ bool Project::configure() const
 	auto in = std::filesystem::last_write_time(PROJECT_MAS, ec);
 	auto out = std::filesystem::last_write_time(ninja_build, ec);
 	if (ec || in > out) {
-		return gen();
+		return gen(opt_cdb);
 	}
 	return true;
 }
 
-bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated) const
+bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const
 {
 	if (generated.count(target->name())) { // loop dep?
 		return true;
@@ -125,14 +125,14 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 			std::cerr << "Error: no target named " << d << " found" << std::endl;
 			return false;
 		}
-		if (!gen_with_dep(it->second, generated)) {
+		if (!gen_with_dep(it->second, generated, opt_cdb)) {
 			return false;
 		}
 	}
-	return target->gen();
+	return target->gen(opt_cdb);
 }
 
-bool Project::gen() const
+bool Project::gen(std::optional<Cdb> &opt_cdb) const
 {
 	std::set<std::string> generated;
 	for (auto const &t : _targets) {
@@ -141,8 +141,14 @@ bool Project::gen() const
 		}
 	}
 	for (auto const &t : _targets) {
-		if (!gen_with_dep(t.second, generated)) { // generate each target first
+		if (!gen_with_dep(t.second, generated, opt_cdb)) { // generate each target first
 			return false;
+		}
+	}
+	if (opt_cdb) {
+		for (auto &item : opt_cdb.value()) {
+			// global cfalgs
+			item.flags = "-Wall -g " + item.flags;
 		}
 	}
 	auto script = gen_ninja_build("-Wall -g", generated);

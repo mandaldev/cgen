@@ -7,6 +7,13 @@
                 "string_view": "cpp",
                 "ratio": "cpp",
                 "streambuf": "cpp",
-                "iostream": "cpp"
+                "iostream": "cpp",
+                "array": "cpp",
+                "numeric": "cpp",
+                "mutex": "cpp",
+                "new": "cpp",
+                "stdexcept": "cpp",
+                "thread": "cpp",
+                "tuple": "cpp"
         }
 }

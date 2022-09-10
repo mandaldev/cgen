@@ -2,7 +2,9 @@
 #define MAS_SRC_TARGET_HPP
 #include "mas/Value.hpp"
 #include "common.hpp"
+#include "cdb.hpp"
 #include <set>
+#include <optional>
 #include <memory>
 
 class Project;
@@ -61,7 +63,7 @@ public:
 	bool resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
 
 	/// generate build scripts
-	bool gen() const;
+	bool gen(std::optional<Cdb> &opt_cdb) const;
 
 }; // class Target
 

@@ -14,10 +14,10 @@ class Project
 
 	Pkgconf _pkgconf;
 
-	bool gen() const;
+	bool gen(std::optional<Cdb> &opt_cdb) const;
 
 	// generate target's dep first and then itself
-	bool gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated) const;
+	bool gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const;
 
 public:
 
@@ -33,7 +33,7 @@ public:
 	bool load(Mas::Map const &project_mas);
 
 	/// generate build scripts
-	bool configure() const;
+	bool configure(std::optional<Cdb> &opt_cdb) const;
 
 	/// build all targets in this project
 	bool build_all_targets();
