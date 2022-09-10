@@ -136,7 +136,7 @@ bool Project::gen() const
 {
 	std::set<std::string> generated;
 	for (auto const &t : _targets) {
-		if (!t.second->load_indirected(_targets)) {
+		if (!t.second->resolve_deps(_targets)) {
 			return false;
 		}
 	}

@@ -55,7 +55,7 @@ bool Target::load_pkgconfs(Mas::Map const &target_mas)
 		return false;
 	}
 	_pkg = { pkg.begin(), pkg.end() };
-	
+
 	for (auto &p : _pkg) {
 		if (!_project->pkgconf()->find(p)) {
 			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg" << std::endl;
@@ -135,11 +135,11 @@ std::vector<std::string> Target::dep() const
 	return _dep;
 }
 
-bool Target::load_indirected(std::map<std::string, std::shared_ptr<Target>> const &all_targets)
+bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets)
 {
-	if (_indirected_loaded)
+	if (_deps_resolved)
 		return true;
-	_indirected_loaded = true; // in case of loop
+	_deps_resolved = true; // in case of loop
 	auto dep = _dep;
 	for (auto &d : _dep) {
 		auto it = all_targets.find(d);
@@ -147,7 +147,7 @@ bool Target::load_indirected(std::map<std::string, std::shared_ptr<Target>> cons
 			std::cerr << "Error: no target named " << d << " found" << std::endl;
 			return false;
 		}
-		if (!it->second->load_indirected(all_targets)) {
+		if (!it->second->resolve_deps(all_targets)) {
 			return false;
 		}
 		auto ddep = it->second->dep();

@@ -32,7 +32,7 @@ class Target
 	std::string _pkg_cflags;
 	std::string _pkg_lflags;
 
-	bool _indirected_loaded = false;
+	bool _deps_resolved = false;
 
 	bool load_pkgconfs(Mas::Map const &target_mas);
 
@@ -57,7 +57,8 @@ public:
 	/// from pkgconf and extras
 	std::string external_lflags() const;
 
-	bool load_indirected(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
+	/// resolve deps
+	bool resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
 
 	/// generate build scripts
 	bool gen() const;
