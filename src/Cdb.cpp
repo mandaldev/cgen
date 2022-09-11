@@ -57,6 +57,7 @@ bool gen_cdb_file(Cdb const &cdb, std::string const &dir)
 			cc.directory = abs_dir;
 			cc.arguments.push_back(item.cmd);
 			cc.arguments.insert(cc.arguments.end(), args.begin(), args.end());
+			cc.arguments.push_back("-c");
 			cc.arguments.push_back("-o");
 			cc.arguments.push_back(s + ".o");
 			cc.arguments.push_back(cc.file);
