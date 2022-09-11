@@ -1,0 +1,30 @@
+{
+  name "PhonyTest"
+  author "Mandal Dev"
+  license "GPL-3.0"
+
+  target [
+    {
+      name "main"
+      language "c++"
+      std "c++17"
+      type "exe"
+
+      src [
+        "src/main.cpp"
+      ]
+
+      dep [
+        "glfw"
+      ]
+    }
+    {
+      name "glfw"
+      type "phony"
+
+      pkgconf [
+        "glfw3"
+      ]
+    }
+  ]
+}

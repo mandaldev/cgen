@@ -118,6 +118,9 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 	if (generated.count(target->name())) { // loop dep?
 		return true;
 	}
+	if (target->type() == TargetType::Phony) {
+		return true;
+	}
 	generated.insert(target->name());
 	for (auto &d : target->dep()) {
 		auto it = _targets.find(d);

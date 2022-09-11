@@ -7,6 +7,7 @@
 using namespace std::literals;
 
 enum class TargetType {
+	Phony,
 	Executable,
 	StaticLibrary,
 	DynamicLibrary,

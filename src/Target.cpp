@@ -76,25 +76,27 @@ bool Target::load(Mas::Map const &target_mas)
 	Mas::get_string(target_mas, TYPE, type);
 	Mas::get_string(target_mas, EXTRA_CFLAGS, _extra_cflags);
 	Mas::get_string(target_mas, EXTRA_LFLAGS, _extra_lflags);
-	if (lang == "c") {
-		_lang = Lang::C;
-	} else if (lang == "c++") {
-		_lang = Lang::CPlusPlus;
-	} else {
-		std::cerr
-			<< "Unknown language: " << lang
-			<< std::endl;
-		return false;
-	}
 	if (type == "exe") {
 		_type = TargetType::Executable;
 	} else if (type == "slib") {
 		_type = TargetType::StaticLibrary;
 	} else if (type == "dlib") {
 		_type = TargetType::DynamicLibrary;
+	} else if (type == "phony") {
+		_type = TargetType::Phony;
 	} else {
 		std::cerr
 			<< "Unknown target type: " << type
+			<< std::endl;
+		return false;
+	}
+	if (lang == "c") {
+		_lang = Lang::C;
+	} else if (lang == "c++") {
+		_lang = Lang::CPlusPlus;
+	} else if (_type != TargetType::Phony) {
+		std::cerr
+			<< "Unknown language: " << lang
 			<< std::endl;
 		return false;
 	}
@@ -173,6 +175,8 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 	case TargetType::StaticLibrary:
 	case TargetType::DynamicLibrary:
 		break;
+	case TargetType::Phony:
+		return true;
 	default:
 		return false;
 	}
@@ -187,7 +191,9 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 	for (auto &d : _dep) {
 		auto it = _project->targets().find(d);
 		if (it != _project->targets().end()) {
-			deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
+			if (it->second->type() != TargetType::Phony) {
+				deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
+			}
 			cflags.push_back(it->second->external_cflags());
 			lflags.push_back(it->second->external_lflags());
 		}
