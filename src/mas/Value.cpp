@@ -104,13 +104,13 @@ public:
 		endline();
 		_indent++;
 
-		for (auto const &kv : m) {
+		for (auto &&[k, v] : m) {
 			indent();
-			operator()(kv.first, true); // key
+			operator()(k, true); // key
 			if (_opt.pretty) {
 				_output.push_back(' ');
 			}
-			kv.second.visit_by(*this); // value
+			v.visit_by(*this); // value
 		}
 
 		_indent--;

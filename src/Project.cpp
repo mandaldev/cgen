@@ -149,13 +149,13 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 bool Project::gen(std::optional<Cdb> &opt_cdb) const
 {
 	std::set<std::string> generated;
-	for (auto const &t : _targets) {
-		if (!t.second->resolve_deps(_targets)) {
+	for (auto &&[name, target] : _targets) {
+		if (!target->resolve_deps(_targets)) {
 			return false;
 		}
 	}
-	for (auto const &t : _targets) {
-		if (!gen_with_dep(t.second, generated, opt_cdb)) { // generate each target first
+	for (auto &&[name, target] : _targets) {
+		if (!gen_with_dep(target, generated, opt_cdb)) { // generate each target first
 			return false;
 		}
 	}

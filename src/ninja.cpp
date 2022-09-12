@@ -61,15 +61,15 @@ bool gen_ninja_target_build(
 		deps_implicit = " |";
 		deps_order_only = " ||";
 		lflags.push_back("-L.");
-		for (auto &d : dep) {
-			if (d.first) {
+		for (auto &&[implicit, name] : dep) {
+			if (implicit) {
 				has_implicit = true;
-				deps_implicit += " _phony_" + d.second;
+				deps_implicit += " _phony_" + name;
 			} else {
 				has_order_only = true;
-				deps_order_only += " _phony_" + d.second;
+				deps_order_only += " _phony_" + name;
 			}
-			lflags.push_back("-l" + d.second);
+			lflags.push_back("-l" + name);
 		}
 	}
 	std::string out_name, link_rule;
