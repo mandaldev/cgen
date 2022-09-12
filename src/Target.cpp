@@ -15,6 +15,7 @@ static const auto DEP = "dep";
 static const auto PKGCONF = "pkgconf";
 static const auto EXTRA_CFLAGS = "extra_cflags";
 static const auto EXTRA_LFLAGS = "extra_lflags";
+static const auto TEMPLATE = "template";
 
 static std::optional<std::string> load_string_set(Mas::Value const &mas, std::set<std::string> &set)
 {
@@ -76,6 +77,7 @@ bool Target::load(Mas::Map const &target_mas)
 	Mas::get_string(target_mas, TYPE, type);
 	Mas::get_string(target_mas, EXTRA_CFLAGS, _extra_cflags);
 	Mas::get_string(target_mas, EXTRA_LFLAGS, _extra_lflags);
+	Mas::get_string(target_mas, TEMPLATE, _template);
 	if (type == "exe") {
 		_type = TargetType::Executable;
 	} else if (type == "slib") {
@@ -84,6 +86,8 @@ bool Target::load(Mas::Map const &target_mas)
 		_type = TargetType::DynamicLibrary;
 	} else if (type == "phony") {
 		_type = TargetType::Phony;
+	} else if (type == "template") {
+		_type = TargetType::Template;
 	} else {
 		std::cerr
 			<< "Unknown target type: " << type
@@ -94,7 +98,11 @@ bool Target::load(Mas::Map const &target_mas)
 		_lang = Lang::C;
 	} else if (lang == "c++") {
 		_lang = Lang::CPlusPlus;
-	} else if (_type != TargetType::Phony) {
+	} else if (
+		_type != TargetType::Phony
+		&& _type != TargetType::Template
+		&& _template.empty()
+	) {
 		std::cerr
 			<< "Unknown language: " << lang
 			<< std::endl;
@@ -161,6 +169,16 @@ bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &
 
 bool Target::gen(std::optional<Cdb> &opt_cdb) const
 {
+	switch (_type) {
+	case TargetType::Executable:
+	case TargetType::StaticLibrary:
+	case TargetType::DynamicLibrary:
+		break;
+	case TargetType::Phony:
+		return true;
+	default:
+		return false;
+	}
 	std::string cc;
 	switch (_lang) {
 	case Lang::C:
@@ -169,14 +187,6 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 	case Lang::CPlusPlus:
 		cc = "g++";
 		break;
-	}
-	switch (_type) {
-	case TargetType::Executable:
-	case TargetType::StaticLibrary:
-	case TargetType::DynamicLibrary:
-		break;
-	case TargetType::Phony:
-		return true;
 	default:
 		return false;
 	}
@@ -227,4 +237,69 @@ std::string Target::external_cflags() const
 std::string Target::external_lflags() const
 {
 	return trim_string(_pkg_lflags + " " + _extra_lflags);
+}
+
+bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates)
+{
+	if (_template.empty()) {
+		return true;
+	}
+	auto it = all_templates.find(_template);
+	if (it == all_templates.end()) {
+		std::cerr << "Error: Template not found: " << _template << std::endl;
+		return false;
+	}
+
+	auto apply_override = [this, &all_templates](auto field_name, auto op_need_apply, auto op_apply)
+	{
+		auto temp = _template;
+		while (op_need_apply()) {
+			if (temp.empty()) {
+				std::cerr << "Error: target's " << field_name << " field not specified, no templates applyed\n";
+				return false;
+			}
+			auto it = all_templates.find(temp);
+			if (it == all_templates.end()) {
+				std::cerr << "Error: Template not found: " << _template << std::endl;
+				return false;
+			}
+			op_apply(it->second);
+			temp = it->second->_template;
+		}
+		return true;
+	};
+	if (!apply_override(LANG, [this]() { return _lang == Lang::None; }, [this](auto target) { _lang = target->_lang; })) {
+		return false;
+	}
+	if (!apply_override(STD, [this]() { return _std.empty(); }, [this](auto target) { _std = target->_std; })) {
+		return false;
+	}
+
+	auto apply_append = [this, &all_templates](auto op_apply)
+	{
+		auto temp = _template;
+		while (temp.size()) {
+			auto it = all_templates.find(temp);
+			if (it == all_templates.end()) {
+				std::cerr << "Error: Template not found: " << _template << std::endl;
+				return false;
+			}
+			op_apply(it->second);
+			temp = it->second->_template;
+		}
+		return true;
+	};
+	if (!apply_append([this](auto target)
+	{
+		// append these fields
+		_dep.insert(_dep.begin(), target->_dep.begin(), target->_dep.end());
+		_pkg.insert(_pkg.begin(), target->_pkg.begin(), target->_pkg.end());
+		_extra_cflags = target->_extra_cflags + _extra_cflags;
+		_extra_lflags = target->_extra_lflags + _extra_lflags;
+		_pkg_cflags = target->_pkg_cflags + _pkg_cflags;
+		_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
+	})) {
+		return false;
+	}
+	return true;
 }

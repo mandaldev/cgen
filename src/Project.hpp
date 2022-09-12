@@ -10,7 +10,7 @@ class Project
 	std::string _author;
 	std::string _email;
 	std::string _license;
-	std::map<std::string, std::shared_ptr<Target>> _targets;
+	std::map<std::string, std::shared_ptr<Target>> _targets, _templates;
 
 	Pkgconf _pkgconf;
 

@@ -1,0 +1,35 @@
+{
+  name "TemplateTest"
+  author "Mandal Dev"
+  license "GPL-3.0"
+
+  target [
+    {
+      name "main"
+      type "exe"
+      template "c++17-main"
+
+      src [
+        "src/main.cpp"
+      ]
+    }
+    {
+      type "template"
+      name "c++17-main"
+
+      language "c++"
+      std "c++17"
+      dep [
+        "glfw"
+      ]
+    }
+    {
+      type "phony"
+      name "glfw"
+
+      pkgconf [
+        "glfw3"
+      ]
+    }
+  ]
+}

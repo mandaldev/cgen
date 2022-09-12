@@ -12,7 +12,12 @@ static const auto EMAIL = "email";
 static const auto LICENSE = "license";
 static const auto TARGET = "target";
 
-static bool load_target(Project *project, Mas::Map const &m, std::map<std::string, std::shared_ptr<Target>> &targets)
+static bool load_target(
+	Project *project,
+	Mas::Map const &m,
+	std::map<std::string, std::shared_ptr<Target>> &targets,
+	std::map<std::string, std::shared_ptr<Target>> &templates
+)
 {
 	auto target = std::make_shared<Target>(project);
 	if (!target->load(m)) {
@@ -23,9 +28,10 @@ static bool load_target(Project *project, Mas::Map const &m, std::map<std::strin
 		return false;
 	}
 	auto name = target->name();
+	auto &dst = target->type() == TargetType::Template ? templates : targets;
 	if (name.length()) {
-		if (!targets.count(name)) {
-			targets.insert({ target->name(), target });
+		if (!dst.count(name)) {
+			dst.insert({ target->name(), target });
 			return true;
 		} else {
 			std::cerr
@@ -74,9 +80,14 @@ bool Project::load(Mas::Map const &project_mas)
 					<< std::endl;
 				return false;
 			}
-			if (!load_target(this, m.map_or({}), _targets)) {
+			if (!load_target(this, m.map_or({}), _targets, _templates)) {
 				return false;
 			}
+		}
+	}
+	for (auto &&[name, target] : _targets) {
+		if (!target->apply_templates(_templates)) {
+			return false;
 		}
 	}
 	return true;

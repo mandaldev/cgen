@@ -87,6 +87,8 @@ bool gen_ninja_target_build(
 		out_name = "lib" + name + ".so";
 		link_rule = NINJA_RULE_LINK_DLIB;
 		break;
+	default:
+		return false;
 	}
 	cflags.push_back(extra_cflags);
 	lflags.push_back(extra_lflags);

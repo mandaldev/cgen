@@ -13,28 +13,35 @@ class Project;
 class Target
 {
 	enum class Lang {
+		None,
 		C,
 		CPlusPlus,
 	}; // enum class Lang
 
 	Project *_project = nullptr;
 
+	/// fields load from mas
+
 	std::string _name;
-	Lang _lang;
+	Lang _lang = Lang::None;
 	std::string _std;
-	TargetType _type;
+	TargetType _type = TargetType::None;
 
 	std::set<std::string> _src;
-	std::vector<std::string> _dep;
+	std::vector<std::string> _dep; // append indirect deps after `resolve_deps`
 	std::vector<std::string> _pkg; // pkg-conf
+
+	std::string _template;
 
 	std::string _extra_cflags;
 	std::string _extra_lflags;
 
+	/// loaded from `_pkg`
+
 	std::string _pkg_cflags;
 	std::string _pkg_lflags;
 
-	bool _deps_resolved = false;
+	bool _deps_resolved = false; // mark, dont resolve again
 
 	bool load_pkgconfs(Mas::Map const &target_mas);
 
@@ -64,6 +71,9 @@ public:
 
 	/// generate build scripts
 	bool gen(std::optional<Cdb> &opt_cdb) const;
+
+	/// apply templates
+	bool apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
 
 }; // class Target
 
