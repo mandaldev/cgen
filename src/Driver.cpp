@@ -88,10 +88,11 @@ int Driver::help()
 		<< std::endl
 		<< "Commands:" << std::endl
 		<< "	build [options] [<target>]	build target" << std::endl
+		<< "	install [<target>]		install target" << std::endl
 		<< "	help [<command>]		print help info [for specific command]" << std::endl
 		<< std::endl
 		<< "'build' options:" << std::endl
-		<< "	-cdb			generate compilation databse file: compile_commands.json" << std::endl
+		<< "	-cdb				generate compilation databse file: compile_commands.json" << std::endl
 		<< std::endl
 	;
 	return 0;
