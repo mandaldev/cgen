@@ -150,3 +150,16 @@ std::string target_file_name(std::string const &target_name, TargetType type)
 		return "";
 	}
 }
+
+std::string target_install_subdir(TargetType type)
+{
+	switch (type) {
+	case TargetType::StaticLibrary:
+	case TargetType::DynamicLibrary:
+		return "lib";
+	case TargetType::Executable:
+		return "bin";
+	default:
+		return "";
+	}
+}

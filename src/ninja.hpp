@@ -71,4 +71,6 @@ bool gen_ninja_target_build(
 
 std::string target_file_name(std::string const &target_name, TargetType type);
 
+std::string target_install_subdir(TargetType type);
+
 #endif
