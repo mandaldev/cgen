@@ -72,19 +72,17 @@ bool gen_ninja_target_build(
 			lflags.push_back("-l" + name);
 		}
 	}
-	std::string out_name, link_rule;
+	std::string out_name = target_file_name(name, type);
+	std::string link_rule;
 	switch (type) {
 	case TargetType::Executable:
-		out_name = name;
 		link_rule = NINJA_RULE_LINK_EXE;
 		break;
 	case TargetType::StaticLibrary:
-		out_name = "lib" + name + ".a";
 		link_rule = NINJA_RULE_LINK_SLIB;
 		break;
 	case TargetType::DynamicLibrary:
 		cflags.push_back("-fPIC");
-		out_name = "lib" + name + ".so";
 		link_rule = NINJA_RULE_LINK_DLIB;
 		break;
 	default:
@@ -137,4 +135,17 @@ bool gen_ninja_target_build(
 	fs.close();
 	std::cerr << fname << " written\n";
 	return true;
+}
+
+std::string target_file_name(std::string const &target_name, TargetType type)
+{
+	switch (type) {
+	case TargetType::StaticLibrary:
+		return "lib" + target_name + ".a";
+	case TargetType::DynamicLibrary:
+		return "lib" + target_name + ".so";
+	case TargetType::Executable:
+	default:
+		return target_name;
+	}
 }

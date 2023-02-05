@@ -69,4 +69,6 @@ bool gen_ninja_target_build(
 	std::string const &extra_lflags
 );
 
+std::string target_file_name(std::string const &target_name, TargetType type);
+
 #endif
