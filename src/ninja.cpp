@@ -145,7 +145,8 @@ std::string target_file_name(std::string const &target_name, TargetType type)
 	case TargetType::DynamicLibrary:
 		return "lib" + target_name + ".so";
 	case TargetType::Executable:
-	default:
 		return target_name;
+	default:
+		return "";
 	}
 }
