@@ -41,6 +41,11 @@ public:
 	/// build a specific target and its deps
 	bool build_target(std::string const &target_name);
 
+	/// install all targets in this project
+	bool install_all_targets(std::filesystem::path const &prefix);
+
+	/// install a specific target
+	bool install_target(std::filesystem::path const &prefix, std::string const &target_name);
 }; // class Project
 
 #endif

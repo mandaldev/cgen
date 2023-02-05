@@ -37,6 +37,15 @@
       src [
         "src/mas/Value.cpp"
       ]
+
+      install [
+        {
+          dir "include/mas"
+          files [
+            "src/mas/Value.hpp"
+          ]
+        }
+      ]
     }
     {
       name "xo"
@@ -47,6 +56,16 @@
       src [
         "src/xo/CommandLine.cpp"
         "src/xo/exec.cpp"
+      ]
+
+      install [
+        {
+          dir "include/xo"
+          files [
+            "src/xo/CommandLine.hpp"
+            "src/xo/exec.hpp"
+          ]
+        }
       ]
     }
   ]

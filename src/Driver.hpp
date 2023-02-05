@@ -18,9 +18,15 @@ class Driver
 	XO::CommandLine _cmdline;
 	std::map<std::string, std::function<int()>> _cmd;
 
+	Project _project;
+
+	int load_project();
+
 	int help();
 
 	int build();
+
+	int install();
 
 public:
 

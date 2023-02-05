@@ -6,6 +6,7 @@
 #include <set>
 #include <optional>
 #include <memory>
+#include <filesystem>
 
 class Project;
 
@@ -17,6 +18,12 @@ class Target
 		C,
 		CPlusPlus,
 	}; // enum class Lang
+
+	struct InstallItem
+	{
+		std::string dir = ".";
+		std::set<std::string> files;
+	};
 
 	Project *_project = nullptr;
 
@@ -41,9 +48,14 @@ class Target
 	std::string _pkg_cflags;
 	std::string _pkg_lflags;
 
+	/// extra items to install
+	std::vector<InstallItem> _installItems;
+
 	bool _deps_resolved = false; // mark, dont resolve again
 
 	bool load_pkgconfs(Mas::Map const &target_mas);
+
+	bool load_installs(Mas::Map const &target_mas);
 
 public:
 
@@ -74,6 +86,9 @@ public:
 
 	/// apply templates
 	bool apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
+
+	/// install target files
+	bool install(std::filesystem::path const &prefix, std::string const &profile) const;
 
 }; // class Target
 

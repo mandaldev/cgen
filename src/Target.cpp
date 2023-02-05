@@ -16,6 +16,9 @@ static const auto PKGCONF = "pkgconf";
 static const auto EXTRA_CFLAGS = "extra_cflags";
 static const auto EXTRA_LFLAGS = "extra_lflags";
 static const auto TEMPLATE = "template";
+static const auto INSTALL = "install";
+static const auto INSTALL_DIR = "dir";
+static const auto INSTALL_FILES = "files";
 
 static std::optional<std::string> load_string_set(Mas::Value const &mas, std::set<std::string> &set)
 {
@@ -64,6 +67,39 @@ bool Target::load_pkgconfs(Mas::Map const &target_mas)
 		}
 		_pkg_cflags += " " + _project->pkgconf()->cflags(p);
 		_pkg_lflags += " " + _project->pkgconf()->libs(p);
+	}
+	return true;
+}
+
+bool Target::load_installs(Mas::Map const &target_mas)
+{
+	auto it = target_mas.find(INSTALL);
+	if (it == target_mas.end()) {
+		return true;
+	}
+	if (!it->second.is_array()) {
+		std::cerr << "Error: invalid 'install' of target '" << _name << "'\n";
+		return false;
+	}
+	auto &install_mas = it->second.array_or({});
+	for (auto &item_mas : install_mas) {
+		if (!item_mas.is_map()) {
+			std::cerr << "Error: 'install' list element must be a map!\n";
+			return false;
+		}
+		InstallItem item;
+		auto &item_map = item_mas.map_or({});
+		auto dir = item_map.find(INSTALL_DIR);
+		if (dir != item_map.end()) {
+			item.dir = dir->second.string_or(item.dir);
+		}
+		auto files = item_map.find(INSTALL_FILES);
+		if (files != item_map.end()) {
+			load_string_set(files->second, item.files);
+		}
+		if (item.files.size()) {
+			_installItems.push_back(item);
+		}
 	}
 	return true;
 }
@@ -300,6 +336,41 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 		_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
 	})) {
 		return false;
+	}
+	return true;
+}
+
+static bool install_file(std::filesystem::path const &p, std::filesystem::path const &dir)
+{
+	std::error_code ec{};
+	std::filesystem::create_directories(dir, ec);
+	if (ec) {
+		std::cerr << "Error: failed to create directory " << dir << ", error: " << ec << "\n";
+		return false;
+	}
+	std::filesystem::copy_file(p, dir / p.filename(), std::filesystem::copy_options::overwrite_existing, ec);
+	if (ec) {
+		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
+		return false;
+	}
+	return true;
+}
+
+bool Target::install(std::filesystem::path const &prefix, std::string const &profile) const
+{
+	auto target_file = target_file_name(_name, _type);
+	if (target_file.empty()) {
+		return true;
+	}
+	if (!install_file("./build/" + profile + "/" + target_file, prefix / target_install_subdir(_type))) {
+		return false;
+	}
+	for (auto &item : _installItems) {
+		for (auto &file : item.files) {
+			if (!install_file(file, prefix / item.dir)) {
+				return false;
+			}
+		}
 	}
 	return true;
 }

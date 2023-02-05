@@ -107,6 +107,27 @@ bool Project::build_target(std::string const &target_name)
 	return false;
 }
 
+bool Project::install_all_targets(std::filesystem::path const &prefix)
+{
+	if (!build_all_targets()) {
+		return false;
+	}
+	for (auto &t : _targets) {
+		if (!t.second->install(prefix, "debug")) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Project::install_target(std::filesystem::path const &prefix, std::string const &target_name)
+{
+	if (!build_target(target_name)) {
+		return false;
+	}
+	return _targets[target_name]->install(prefix, "debug");
+}
+
 bool Project::configure(std::optional<Cdb> &opt_cdb) const
 {
 	auto ninja_build = "./build/debug/"s + NINJA_BUILD;

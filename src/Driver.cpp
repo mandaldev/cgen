@@ -33,6 +33,7 @@ Driver::Driver(int argc, char const *const *argv)
 {
 	_cmd["help"] = [&]() { return help(); };
 	_cmd["build"] = [&]() { return build(); };
+	_cmd["install"] = [&]() { return install(); };
 }
 
 int Driver::run()
@@ -55,6 +56,30 @@ int Driver::run()
 	return 1;
 }
 
+int Driver::load_project()
+{
+	if (!chroot()) {
+		std::cerr << "Not a cgen project path" << std::endl;
+		return 1;
+	}
+
+	auto mas = load_project_mas();
+	if (!mas.has_value() || !mas.value().is_map()) {
+		std::cerr
+			<< "Not a valid cgen project file"
+			<< std::endl;
+		return 1;
+	}
+
+	if (!_project.load(mas.value().as_map())) {
+		std::cerr
+			<< "Failed to load cgen project file"
+			<< std::endl;
+		return 1;
+	}
+	return 0;
+}
+
 int Driver::help()
 {
 	std::cerr
@@ -74,32 +99,14 @@ int Driver::help()
 
 int Driver::build()
 {
-	if (!chroot()) {
-		std::cerr << "Not a cgen project path" << std::endl;
-		return 1;
+	if (auto ecode = load_project()) {
+		return ecode;
 	}
-
-	auto mas = load_project_mas();
-	if (!mas.has_value() || !mas.value().is_map()) {
-		std::cerr
-			<< "Not a valid cgen project file"
-			<< std::endl;
-		return 1;
-	}
-
-	Project project;
-	if (!project.load(mas.value().as_map())) {
-		std::cerr
-			<< "Failed to load cgen project file"
-			<< std::endl;
-		return 1;
-	}
-
 	std::optional<Cdb> opt_cdb;
 	if (_cmdline.has_switch("cdb")) {
 		opt_cdb = Cdb();
 	}
-	if (!project.configure(opt_cdb)) {
+	if (!_project.configure(opt_cdb)) {
 		std::cerr
 			<< "Failed to configure project"
 			<< std::endl;
@@ -107,10 +114,31 @@ int Driver::build()
 	}
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return project.build_all_targets() ? 0 : 1;
+		return _project.build_all_targets() ? 0 : 1;
 	}
 	for (auto const &name : targets_name) {
-		if (!project.build_target(name)) {
+		if (!_project.build_target(name)) {
+			std::cerr
+				<< "Aborting..."
+				<< std::endl;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+int Driver::install()
+{
+	if (auto ecode = load_project()) {
+		return ecode;
+	}
+	std::filesystem::path prefix = _cmdline.get_switch("prefix").value_or("/usr/local");
+	auto targets_name = _cmdline.get_arguments();
+	if (targets_name.empty()) {
+		return _project.install_all_targets(prefix) ? 0 : 1;
+	}
+	for (auto const &name : targets_name) {
+		if (!_project.install_target(prefix, name)) {
 			std::cerr
 				<< "Aborting..."
 				<< std::endl;
