@@ -353,6 +353,7 @@ static bool install_file(std::filesystem::path const &p, std::filesystem::path c
 		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
 		return false;
 	}
+	std::cerr << "Succeed to install " << p << "\n";
 	return true;
 }
 
