@@ -7,18 +7,13 @@
 #include <optional>
 #include <memory>
 #include <filesystem>
+#include <functional>
 
 class Project;
 
 /// a cgen target
 class Target
 {
-	enum class Lang {
-		None,
-		C,
-		CPlusPlus,
-	}; // enum class Lang
-
 	struct InstallItem
 	{
 		std::string dir = ".";
@@ -30,7 +25,7 @@ class Target
 	/// fields load from mas
 
 	std::string _name;
-	Lang _lang = Lang::None;
+	std::string _lang;
 	std::string _std;
 	TargetType _type = TargetType::None;
 
@@ -57,8 +52,17 @@ class Target
 
 	bool load_installs(Mas::Map const &target_mas);
 
-public:
+	bool apply_override(
+		std::map<std::string, std::shared_ptr<Target>> const &all_templates,
+		const char *field_name,
+		std::function<std::string &(Target &target)> field
+	);
 
+	bool apply_append(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
+
+	void append(std::shared_ptr<Target> target);
+
+public:
 	Target(Project *project);
 	Target(Target const &) = delete;
 	Target &operator=(Target const &) = delete;

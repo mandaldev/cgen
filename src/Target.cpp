@@ -7,7 +7,13 @@
 #include <filesystem>
 
 static const auto NAME = "name";
+
 static const auto LANG = "language";
+static const auto LANG_C = "c";
+static const auto LANG_CPP = "c++";
+static const std::set<std::string> LANG_C_SET = {"c", "C"};
+static const std::set<std::string> LANG_CPP_SET = {"c++", "C++", "cpp", "CPP"};
+
 static const auto STD = "std";
 static const auto TYPE = "type";
 static const auto SRC = "src";
@@ -55,14 +61,14 @@ bool Target::load_pkgconfs(Mas::Map const &target_mas)
 	std::set<std::string> pkg;
 	auto emsg = load_string_set(it->second, pkg);
 	if (emsg.has_value()) {
-		std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "': " << emsg.value() << std::endl;
+		std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "': " << emsg.value() << "\n";
 		return false;
 	}
-	_pkg = { pkg.begin(), pkg.end() };
+	_pkg = {pkg.begin(), pkg.end()};
 
 	for (auto &p : _pkg) {
 		if (!_project->pkgconf()->find(p)) {
-			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg" << std::endl;
+			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg\n";
 			return false;
 		}
 		_pkg_cflags += " " + _project->pkgconf()->cflags(p);
@@ -125,23 +131,15 @@ bool Target::load(Mas::Map const &target_mas)
 	} else if (type == "template") {
 		_type = TargetType::Template;
 	} else {
-		std::cerr
-			<< "Unknown target type: " << type
-			<< std::endl;
+		std::cerr << "Unknown target type: " << type << "\n";
 		return false;
 	}
-	if (lang == "c") {
-		_lang = Lang::C;
-	} else if (lang == "c++") {
-		_lang = Lang::CPlusPlus;
-	} else if (
-		_type != TargetType::Phony
-		&& _type != TargetType::Template
-		&& _template.empty()
-	) {
-		std::cerr
-			<< "Unknown language: " << lang
-			<< std::endl;
+	if (LANG_C_SET.count(lang)) {
+		_lang = LANG_C;
+	} else if (LANG_CPP_SET.count(lang)) {
+		_lang = LANG_CPP;
+	} else if (_type != TargetType::Phony && _type != TargetType::Template && _template.empty()) {
+		std::cerr << "Unknown language: " << lang << "\n";
 		return false;
 	}
 
@@ -149,7 +147,7 @@ bool Target::load(Mas::Map const &target_mas)
 	if (it != target_mas.end()) {
 		auto emsg = load_string_set(it->second, _src);
 		if (emsg.has_value()) {
-			std::cerr << "Error: invalid 'src' of target '" << _name << "': " << emsg.value() << std::endl;
+			std::cerr << "Error: invalid 'src' of target '" << _name << "': " << emsg.value() << "\n";
 			return false;
 		}
 	}
@@ -158,10 +156,10 @@ bool Target::load(Mas::Map const &target_mas)
 		std::set<std::string> dep;
 		auto emsg = load_string_set(it->second, dep);
 		if (emsg.has_value()) {
-			std::cerr << "Error: invalid 'dep' of target '" << _name << "': " << emsg.value() << std::endl;
+			std::cerr << "Error: invalid 'dep' of target '" << _name << "': " << emsg.value() << "\n";
 			return false;
 		}
-		_dep = { dep.begin(), dep.end() };
+		_dep = {dep.begin(), dep.end()};
 	}
 	return load_pkgconfs(target_mas);
 }
@@ -183,14 +181,15 @@ std::vector<std::string> Target::dep() const
 
 bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets)
 {
-	if (_deps_resolved)
+	if (_deps_resolved) {
 		return true;
+	}
 	_deps_resolved = true; // in case of loop
 	auto dep = _dep;
 	for (auto &d : _dep) {
 		auto it = all_targets.find(d);
 		if (it == all_targets.end()) {
-			std::cerr << "Error: no target named " << d << " found" << std::endl;
+			std::cerr << "Error: no target named " << d << " found\n";
 			return false;
 		}
 		if (!it->second->resolve_deps(all_targets)) {
@@ -216,14 +215,11 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 		return false;
 	}
 	std::string cc;
-	switch (_lang) {
-	case Lang::C:
+	if (_lang == LANG_C) {
 		cc = "gcc";
-		break;
-	case Lang::CPlusPlus:
+	} else if (_lang == LANG_CPP) {
 		cc = "g++";
-		break;
-	default:
+	} else {
 		return false;
 	}
 
@@ -238,7 +234,7 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 		auto it = _project->targets().find(d);
 		if (it != _project->targets().end()) {
 			if (it->second->type() != TargetType::Phony) {
-				deps.push_back({ it->second->type() == TargetType::StaticLibrary, d });
+				deps.push_back({it->second->type() == TargetType::StaticLibrary, d});
 			}
 			cflags.push_back(it->second->external_cflags());
 			lflags.push_back(it->second->external_lflags());
@@ -275,6 +271,55 @@ std::string Target::external_lflags() const
 	return trim_string(_pkg_lflags + " " + _extra_lflags);
 }
 
+bool Target::apply_override(
+	std::map<std::string, std::shared_ptr<Target>> const &all_templates,
+	const char *field_name,
+	std::function<std::string &(Target &target)> field
+)
+{
+	auto temp = _template;
+	while (field(*this).empty()) {
+		if (temp.empty()) {
+			std::cerr << "Error: target's " << field_name << " field not specified, no templates applyed\n";
+			return false;
+		}
+		auto it = all_templates.find(temp);
+		if (it == all_templates.end()) {
+			std::cerr << "Error: Template not found: " << _template << "\n";
+			return false;
+		}
+		field(*this) = field(*it->second);
+		temp = it->second->_template;
+	}
+	return true;
+}
+
+bool Target::apply_append(std::map<std::string, std::shared_ptr<Target>> const &all_templates)
+{
+	auto temp = _template;
+	while (temp.size()) {
+		auto it = all_templates.find(temp);
+		if (it == all_templates.end()) {
+			std::cerr << "Error: Template not found: " << _template << "\n";
+			return false;
+		}
+		append(it->second);
+		temp = it->second->_template;
+	}
+	return true;
+}
+
+void Target::append(std::shared_ptr<Target> target)
+{
+	// append these fields
+	_dep.insert(_dep.begin(), target->_dep.begin(), target->_dep.end());
+	_pkg.insert(_pkg.begin(), target->_pkg.begin(), target->_pkg.end());
+	_extra_cflags = target->_extra_cflags + _extra_cflags;
+	_extra_lflags = target->_extra_lflags + _extra_lflags;
+	_pkg_cflags = target->_pkg_cflags + _pkg_cflags;
+	_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
+}
+
 bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates)
 {
 	if (_template.empty()) {
@@ -282,59 +327,18 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 	}
 	auto it = all_templates.find(_template);
 	if (it == all_templates.end()) {
-		std::cerr << "Error: Template not found: " << _template << std::endl;
+		std::cerr << "Error: Template not found: " << _template << "\n";
 		return false;
 	}
 
-	auto apply_override = [this, &all_templates](auto field_name, auto op_need_apply, auto op_apply)
-	{
-		auto temp = _template;
-		while (op_need_apply()) {
-			if (temp.empty()) {
-				std::cerr << "Error: target's " << field_name << " field not specified, no templates applyed\n";
-				return false;
-			}
-			auto it = all_templates.find(temp);
-			if (it == all_templates.end()) {
-				std::cerr << "Error: Template not found: " << _template << std::endl;
-				return false;
-			}
-			op_apply(it->second);
-			temp = it->second->_template;
-		}
-		return true;
-	};
-	if (!apply_override(LANG, [this]() { return _lang == Lang::None; }, [this](auto target) { _lang = target->_lang; })) {
+	if (!apply_override(all_templates, LANG, &Target::_lang)) {
 		return false;
 	}
-	if (!apply_override(STD, [this]() { return _std.empty(); }, [this](auto target) { _std = target->_std; })) {
+	if (!apply_override(all_templates, STD, &Target::_std)) {
 		return false;
 	}
 
-	auto apply_append = [this, &all_templates](auto op_apply)
-	{
-		auto temp = _template;
-		while (temp.size()) {
-			auto it = all_templates.find(temp);
-			if (it == all_templates.end()) {
-				std::cerr << "Error: Template not found: " << _template << std::endl;
-				return false;
-			}
-			op_apply(it->second);
-			temp = it->second->_template;
-		}
-		return true;
-	};
-	if (!apply_append([this](auto target)
-	{
-		// append these fields
-		_dep.insert(_dep.begin(), target->_dep.begin(), target->_dep.end());
-		_pkg.insert(_pkg.begin(), target->_pkg.begin(), target->_pkg.end());
-		_extra_cflags = target->_extra_cflags + _extra_cflags;
-		_extra_lflags = target->_extra_lflags + _extra_lflags;
-		_pkg_cflags = target->_pkg_cflags + _pkg_cflags;
-		_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
-	})) {
+	if (!apply_append(all_templates)) {
 		return false;
 	}
 	return true;
