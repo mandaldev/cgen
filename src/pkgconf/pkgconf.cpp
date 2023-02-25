@@ -40,15 +40,44 @@ static inline void cast_pkgconf_list(pkgconf_list_t const &list, std::function<v
 	}
 }
 
+static const std::set<std::string> SYSTEM_INCLUDE_DIRS = {
+	"/usr/include",
+	"/usr/local/include",
+};
+static const std::set<std::string> SYSTEM_LIB_DIRS = {
+	"/usr/lib",
+	"/usr/local/lib",
+	"/usr/lib32",
+	"/usr/local/lib32",
+	"/usr/lib64",
+	"/usr/local/lib64",
+};
+
 static std::vector<std::string> cast_string_fragment_list(pkgconf_list_t const &list)
 {
 	std::vector<std::string> strs;
-	auto cat = [&](auto fragment)
+	auto cat = [&strs](auto fragment)
 	{
 		if (!fragment || !fragment->data) {
 			return;
 		}
-		strs.push_back("-"s + (char)fragment->type + fragment->data);
+		std::string data = fragment->data;
+		switch (fragment->type) {
+		case 'I':
+			if (SYSTEM_INCLUDE_DIRS.count(data)) {
+				return;
+			}
+			break;
+		case 'L':
+			if (SYSTEM_LIB_DIRS.count(data)) {
+				return;
+			}
+			break;
+		}
+		if (fragment->type > 0) {
+			data = "-"s + fragment->type + data;
+		}
+		strs.push_back(data);
 	};
 	cast_pkgconf_list<pkgconf_fragment_t>(list, cat);
 	return strs;
@@ -83,9 +112,9 @@ bool Pkgconf::find(std::string const &pkg_name)
 	}
 
 	PkgInfo info;
-	info.cflags = join_strings(cast_string_fragment_list(pkg->cflags));
-	info.libs = join_strings(cast_string_fragment_list(pkg->libs));
-	info.libs_private = join_strings(cast_string_fragment_list(pkg->libs_private));
+	info.cflags = join_strings(cast_string_fragment_list(pkg->cflags), " ");
+	info.libs = join_strings(cast_string_fragment_list(pkg->libs), " ");
+	info.libs_private = join_strings(cast_string_fragment_list(pkg->libs_private), " ");
 	info.required = cast_dependency_fragment_list(pkg->required);
 	info.required_private = cast_dependency_fragment_list(pkg->requires_private);
 	_pkgs.insert({pkg_name, info});
@@ -104,33 +133,34 @@ bool Pkgconf::find(std::string const &pkg_name)
 	return true;
 }
 
-std::string Pkgconf::flags_no_recursively(
-	std::set<std::string> &stack,
-	std::string const &pkg_name,
-	std::string PkgInfo::*flags,
-	std::vector<std::string> PkgInfo::*required,
-	std::vector<std::string> PkgInfo::*required_private
-)
+std::string Pkgconf::flags_no_recursively(RecursiveStack &stack, std::string const &pkg_name)
 {
-	if (stack.count(pkg_name)) {
+	if (stack.pkgs.count(pkg_name)) {
 		return ""s;
 	}
 	auto it = _pkgs.find(pkg_name);
 	if (it == _pkgs.end()) {
 		return ""s;
 	}
-	stack.insert(pkg_name);
+	stack.pkgs.insert(pkg_name);
 
 	auto &pkg = it->second;
-	auto ret = pkg.*flags;
-	if (required) {
-		for (auto &dep : pkg.*required) {
-			ret += ' ' + flags_no_recursively(stack, dep, flags, required, required_private);
+
+	std::string ret;
+	if (stack.cflags) {
+		ret = join_two_items(ret, pkg.cflags, " ");
+	}
+	if (stack.lflags) {
+		ret = join_two_items(ret, pkg.libs, " ");
+	}
+	if (stack.required) {
+		for (auto &dep : pkg.required) {
+			ret = join_two_items(ret, flags_no_recursively(stack, dep), " ");
 		}
 	}
-	if (required_private) {
-		for (auto &dep : pkg.*required_private) {
-			ret += ' ' + flags_no_recursively(stack, dep, flags, required, required_private);
+	if (stack.required_private) {
+		for (auto &dep : pkg.required_private) {
+			ret = join_two_items(ret, flags_no_recursively(stack, dep), " ");
 		}
 	}
 	return ret;
@@ -138,12 +168,18 @@ std::string Pkgconf::flags_no_recursively(
 
 std::string Pkgconf::cflags(std::string const &pkg_name)
 {
-	std::set<std::string> stack;
-	return flags_no_recursively(stack, pkg_name, &PkgInfo::cflags, &PkgInfo::required, &PkgInfo::required_private);
+	RecursiveStack stack;
+	stack.cflags = true;
+	stack.required = true;
+	stack.required_private = true;
+	return flags_no_recursively(stack, pkg_name);
 }
 
 std::string Pkgconf::libs(std::string const &pkg_name)
 {
-	std::set<std::string> stack;
-	return flags_no_recursively(stack, pkg_name, &PkgInfo::libs, &PkgInfo::required, nullptr);
+	RecursiveStack stack;
+	stack.lflags = true;
+	stack.required = true;
+	stack.required_private = false;
+	return flags_no_recursively(stack, pkg_name);
 }

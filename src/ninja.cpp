@@ -58,7 +58,7 @@ bool gen_ninja_target_build(
 	std::string deps_implicit, deps_order_only;
 	bool has_implicit = false, has_order_only = false;
 	if (dep.size()) {
-		deps_implicit = " |";
+		deps_implicit = "|";
 		deps_order_only = " ||";
 		lflags.push_back("-L.");
 		for (auto &&[implicit, name] : dep) {
@@ -92,8 +92,8 @@ bool gen_ninja_target_build(
 	lflags.push_back(extra_lflags);
 
 	std::string script;
-	script += "cflags = $"s + NINJA_GLOBAL_CFLAGS + " " + join_strings(cflags) + "\n";
-	script += "lflags = $"s + NINJA_GLOBAL_LFLAGS + " " + join_strings(lflags) + "\n";
+	script += join_two_items("cflags = $"s + NINJA_GLOBAL_CFLAGS, join_strings(cflags, " "), " ") + "\n";
+	script += join_two_items("lflags = $"s + NINJA_GLOBAL_LFLAGS, join_strings(lflags, " "), " ") + "\n";
 	script += "CC = " + cc + "\n";
 	script += "\n";
 

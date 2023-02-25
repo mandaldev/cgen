@@ -30,13 +30,15 @@ class Pkgconf
 
 	void on_pkgconf_error(std::string const &msg, pkgconf_client_t const *client);
 
-	std::string flags_no_recursively(
-		std::set<std::string> &stack,
-		std::string const &pkg_name,
-		std::string PkgInfo::*flags,
-		std::vector<std::string> PkgInfo::*required,
-		std::vector<std::string> PkgInfo::*required_private
-	);
+	struct RecursiveStack
+	{
+		std::set<std::string> pkgs;
+		bool cflags = false;
+		bool lflags = false;
+		bool required = false;
+		bool required_private = false;
+	};
+	std::string flags_no_recursively(RecursiveStack &stack, std::string const &pkg_name);
 
 public:
 	Pkgconf();

@@ -240,8 +240,8 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 			lflags.push_back(it->second->external_lflags());
 		}
 	}
-	auto cflag = join_strings(cflags);
-	auto lflag = join_strings(lflags);
+	auto cflag = join_strings(cflags, " ");
+	auto lflag = join_strings(lflags, " ");
 	if (opt_cdb) {
 		CdbItem item;
 		item.cmd = cc;
@@ -256,8 +256,8 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 		_name,
 		_src,
 		deps,
-		join_strings(cflags),
-		join_strings(lflags)
+		join_strings(cflags, " "),
+		join_strings(lflags, " ")
 	);
 }
 
@@ -357,7 +357,7 @@ static bool install_file(std::filesystem::path const &p, std::filesystem::path c
 		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
 		return false;
 	}
-	std::cerr << "Succeed to install " << p << "\n";
+	std::cerr << "Succeed to install " << p << " to " << dir << "\n";
 	return true;
 }
 
