@@ -20,7 +20,6 @@ class Project
 	bool gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const;
 
 public:
-
 	Project() = default;
 	Project(Project const &) = delete;
 	Project &operator=(Project const &) = delete;

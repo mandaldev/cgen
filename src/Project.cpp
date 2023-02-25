@@ -21,29 +21,20 @@ static bool load_target(
 {
 	auto target = std::make_shared<Target>(project);
 	if (!target->load(m)) {
-		std::cerr
-			<< "Load target failed"
-			<< std::endl
-		;
+		std::cerr << "Load target failed\n";
 		return false;
 	}
 	auto name = target->name();
 	auto &dst = target->type() == TargetType::Template ? templates : targets;
 	if (name.length()) {
 		if (!dst.count(name)) {
-			dst.insert({ target->name(), target });
+			dst.insert({target->name(), target});
 			return true;
 		} else {
-			std::cerr
-				<< "Target must have unique name: " << name
-				<< std::endl
-			;
+			std::cerr << "Target must have unique name: " << name << "\n";
 		}
 	} else {
-		std::cerr
-			<< "Target name must be non-empty string"
-			<< std::endl
-		;
+		std::cerr << "Target name must be non-empty string\n";
 	}
 	return false;
 }
@@ -68,16 +59,12 @@ bool Project::load(Mas::Map const &project_mas)
 	auto it = project_mas.find(TARGET);
 	if (it != project_mas.end()) {
 		if (!it->second.is_array()) {
-			std::cerr
-				<< "Target must be array value"
-				<< std::endl;
+			std::cerr << "Target must be array value\n";
 			return false;
 		}
 		for (auto &m : it->second.array_or({})) {
 			if (!m.is_map()) {
-				std::cerr
-					<< "member of 'target' must be map value"
-					<< std::endl;
+				std::cerr << "member of 'target' must be map value\n";
 				return false;
 			}
 			if (!load_target(this, m.map_or({}), _targets, _templates)) {
@@ -157,7 +144,7 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 	for (auto &d : target->dep()) {
 		auto it = _targets.find(d);
 		if (it == _targets.end()) {
-			std::cerr << "Error: no target named " << d << " found" << std::endl;
+			std::cerr << "Error: no target named " << d << " found\n";
 			return false;
 		}
 		if (!gen_with_dep(it->second, generated, opt_cdb)) {
@@ -192,9 +179,7 @@ bool Project::gen(std::optional<Cdb> &opt_cdb) const
 	std::string fname = "./build/debug/"s + NINJA_BUILD;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
-		std::cerr
-			<< "Failed to open file " << fname
-			<< std::endl;
+		std::cerr << "Failed to open file " << fname << "\n";
 		return false;
 	}
 	fs << script;

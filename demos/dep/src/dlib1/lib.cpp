@@ -4,6 +4,6 @@
 
 int dlib1_main(int argc, const char *argv[])
 {
-	std::cout << slib1_get_message() << std::endl;
+	std::cout << slib1_get_message() << "\n";
 	return 0;
 }

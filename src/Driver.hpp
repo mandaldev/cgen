@@ -29,7 +29,6 @@ class Driver
 	int install();
 
 public:
-
 	Driver(int argc, char const *const *argv);
 
 	int run();

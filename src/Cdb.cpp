@@ -40,15 +40,13 @@ bool gen_cdb_file(Cdb const &cdb, std::string const &dir)
 	std::string fname = dir + "/compile_commands.json";
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
-		std::cerr
-			<< "Failed to open file " << fname
-			<< std::endl;
+		std::cerr << "Failed to open file " << fname << "\n";
 		return false;
 	}
 
 	fs << "[\n";
 	auto first_cc = true;
-	auto abs_dir = std::filesystem::absolute(dir).string();;
+	auto abs_dir = std::filesystem::absolute(dir).string();
 	for (auto &item : cdb) {
 		auto args = split_string(item.flags, " ");
 		for (auto &s : item.files) {

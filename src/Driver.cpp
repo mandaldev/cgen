@@ -4,12 +4,13 @@ static bool chroot()
 {
 	auto cur = std::filesystem::current_path();
 	while (!std::filesystem::exists(cur / PROJECT_MAS)) {
-		if (!cur.has_relative_path())
+		if (!cur.has_relative_path()) {
 			return false;
+		}
 		cur = cur.parent_path();
 	}
 	std::filesystem::current_path(cur); // chroot
-	std::cerr << "chroot to " << cur << std::endl;
+	std::cerr << "chroot to " << cur << "\n";
 	return true;
 }
 
@@ -21,7 +22,7 @@ static std::optional<Mas::Value> load_project_mas()
 		std::ifstream(PROJECT_MAS).read(buf.data(), buf.size());
 		return Mas::decode(buf);
 	} catch (...) {
-		std::cerr << "read " << PROJECT_MAS << " failed" << std::endl;
+		std::cerr << "read " << PROJECT_MAS << " failed\n";
 		return {};
 	}
 }
@@ -52,29 +53,25 @@ int Driver::run()
 	if (it != _cmd.end()) {
 		return it->second();
 	}
-	std::cerr << "Unknown commond: " << cmd << std::endl;
+	std::cerr << "Unknown commond: " << cmd << "\n";
 	return 1;
 }
 
 int Driver::load_project()
 {
 	if (!chroot()) {
-		std::cerr << "Not a cgen project path" << std::endl;
+		std::cerr << "Not a cgen project path\n";
 		return 1;
 	}
 
 	auto mas = load_project_mas();
 	if (!mas.has_value() || !mas.value().is_map()) {
-		std::cerr
-			<< "Not a valid cgen project file"
-			<< std::endl;
+		std::cerr << "Not a valid cgen project file\n";
 		return 1;
 	}
 
 	if (!_project.load(mas.value().as_map())) {
-		std::cerr
-			<< "Failed to load cgen project file"
-			<< std::endl;
+		std::cerr << "Failed to load cgen project file\n";
 		return 1;
 	}
 	return 0;
@@ -108,9 +105,7 @@ int Driver::build()
 		opt_cdb = Cdb();
 	}
 	if (!_project.configure(opt_cdb)) {
-		std::cerr
-			<< "Failed to configure project"
-			<< std::endl;
+		std::cerr << "Failed to configure project\n";
 		return 1;
 	}
 	auto targets_name = _cmdline.get_arguments();
@@ -119,9 +114,7 @@ int Driver::build()
 	}
 	for (auto const &name : targets_name) {
 		if (!_project.build_target(name)) {
-			std::cerr
-				<< "Aborting..."
-				<< std::endl;
+			std::cerr << "Aborting...\n";
 			return 1;
 		}
 	}
@@ -140,9 +133,7 @@ int Driver::install()
 	}
 	for (auto const &name : targets_name) {
 		if (!_project.install_target(prefix, name)) {
-			std::cerr
-				<< "Aborting..."
-				<< std::endl;
+			std::cerr << "Aborting...\n";
 			return 1;
 		}
 	}

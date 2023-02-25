@@ -87,7 +87,6 @@ String const &Value::string_or(String const &what) const
 class Encoder
 {
 public:
-
 	Encoder(EncodeOption const &opt)
 	: _opt(opt)
 	{
@@ -164,11 +163,11 @@ public:
 	}
 
 private:
-
 	void indent()
 	{
-		if (!_opt.pretty)
+		if (!_opt.pretty) {
 			return;
+		}
 		for (int i = 0; i < _indent; i++) {
 			_output += "  ";
 		}
@@ -176,16 +175,16 @@ private:
 
 	void endline()
 	{
-		if (!_opt.pretty)
+		if (!_opt.pretty) {
 			return;
+		}
 		_output.push_back('\n');
 	}
 
 private:
-
 	std::string _output;
 	EncodeOption _opt;
-	int _indent{ 0 };
+	int _indent{0};
 
 }; // class Encoder
 
@@ -199,7 +198,6 @@ std::string encode(Value const &value, EncodeOption const &option)
 class Decoder
 {
 public:
-
 	Decoder(std::string const &text)
 	: _source(text)
 	{
@@ -221,7 +219,6 @@ public:
 	}
 
 private:
-
 	enum class Error {
 		none,
 		ending,
@@ -245,14 +242,16 @@ private:
 	// skip whitspaces
 	void skip_ws()
 	{
-		_pos = std::find_if(_source.begin() + _pos, _source.end(), [](auto c) {
+		auto pred = [](auto c)
+		{
 			switch (c) {
 			case '\t': case '\n': case '\r': case ' ':
 				return false;
 			default:
 				return true;
 			}
-		}) - _source.begin();
+		};
+		_pos = std::find_if(_source.begin() + _pos, _source.end(), pred) - _source.begin();
 	}
 
 	// has reach end-of-source
@@ -284,7 +283,8 @@ private:
 
 	void forward_unquoted(TokenType &type, String &token)
 	{
-		auto unquoted_end = std::find_if_not(_source.begin() + _pos, _source.end(), [](auto c) {
+		auto pred = [](auto c)
+		{
 			// chars need no quoting
 			switch (c) {
 			case 'a' ... 'z':
@@ -306,7 +306,8 @@ private:
 			default:
 				return false;
 			}
-		});
+		};
+		auto unquoted_end = std::find_if_not(_source.begin() + _pos, _source.end(), pred);
 		token = String(_source.begin() + _pos, unquoted_end);
 		_pos = unquoted_end - _source.begin();
 		if (token.empty()) {
@@ -321,8 +322,9 @@ private:
 		type = TokenType::end;
 
 		skip_ws();
-		if (is_eos())
+		if (is_eos()) {
 			return;
+		}
 
 		auto c = _source[_pos++];
 		switch (c) {
@@ -376,7 +378,7 @@ private:
 			auto k = _cur;
 			auto v = decode_value();
 			if (v.has_value()) {
-				m.insert({ k, v.value() });
+				m.insert({k, v.value()});
 				goto again;
 			} else {
 				return {};
@@ -409,8 +411,7 @@ private:
 	}
 
 private:
-
-	size_t _pos{ 0 };
+	size_t _pos{0};
 	std::string const &_source;
 
 	TokenType _curType{ TokenType::uninit },
@@ -420,7 +421,7 @@ private:
 	String _cur,
 	       _next;
 
-	Error _error{ Error::none };
+	Error _error{Error::none};
 
 }; // class Decoder
 

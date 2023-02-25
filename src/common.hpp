@@ -20,13 +20,13 @@ static std::string const PROJECT_MAS = "project.mas";
 static inline std::string trim_string_left(std::string const &str)
 {
 	auto pos = std::find_if_not(str.begin(), str.end(), [](auto c) { return std::isspace(c); });
-	return std::string{ pos, str.end() };
+	return std::string{pos, str.end()};
 }
 
 static inline std::string trim_string_right(std::string const &str)
 {
 	auto pos = std::find_if_not(str.rbegin(), str.rend(), [](auto c) { return std::isspace(c); }) - str.rbegin();
-	return std::string{ str.begin(), str.end() - pos };
+	return std::string{str.begin(), str.end() - pos};
 }
 
 static inline std::string trim_string(std::string const &str)

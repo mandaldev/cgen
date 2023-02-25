@@ -4,7 +4,7 @@
 
 void hw()
 {
-	std::cout << "Hello world!" << std::endl;
+	std::cout << "Hello world!\n";
 	std::optional<int> oi = 0;
 	assert(oi.has_value());
 }

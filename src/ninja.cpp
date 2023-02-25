@@ -99,7 +99,7 @@ bool gen_ninja_target_build(
 
 	std::string obj_list;
 	for (auto const &s : src) {
-		std::filesystem::path p{ s };
+		std::filesystem::path p{s};
 		if (p.has_parent_path()) { // make sure directories exist
 			std::error_code ec;
 			std::filesystem::create_directories(p.parent_path(), ec);
@@ -126,9 +126,7 @@ bool gen_ninja_target_build(
 	std::ofstream fs;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
-		std::cerr
-			<< "Failed to open file " << fname
-			<< std::endl;
+		std::cerr << "Failed to open file " << fname << "\n";
 		return false;
 	}
 	fs << script;

@@ -44,7 +44,7 @@ static inline std::string to_string(T const &v)
 template <typename T>
 static inline bool from_string(std::string const &str, T &v)
 {
-	std::istringstream iss{ str };
+	std::istringstream iss{str};
 	iss >> v;
 	return iss.good();
 }
@@ -82,7 +82,6 @@ class Value
 	std::variant<Map, Array, String> _var;
 
 public:
-
 	Value() = default;
 	Value(Map const &src): _var(src) {}
 	Value(Array const &src): _var(src) {}
