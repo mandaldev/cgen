@@ -6,7 +6,7 @@
 
 bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, const void *data)
 {
-	auto self = (Pkgconf*)data;
+	auto self = (Pkgconf *)data;
 	self->on_pkgconf_error(msg, client);
 	return true;
 }
@@ -28,7 +28,7 @@ Pkgconf::~Pkgconf()
 
 void Pkgconf::on_pkgconf_error(std::string const &msg, pkgconf_client_t const *client)
 {
-	std::cerr << "pkgconf error: " << msg << std::endl;
+	std::cerr << "pkgconf error: " << msg << "\n";
 }
 
 template <typename Data>
@@ -43,13 +43,14 @@ static inline void cast_pkgconf_list(pkgconf_list_t const &list, std::function<v
 static std::vector<std::string> cast_string_fragment_list(pkgconf_list_t const &list)
 {
 	std::vector<std::string> strs;
-	cast_pkgconf_list<pkgconf_fragment_t>(list, [&](auto fragment)
+	auto cat = [&](auto fragment)
 	{
 		if (!fragment || !fragment->data) {
 			return;
 		}
 		strs.push_back("-"s + (char)fragment->type + fragment->data);
-	});
+	};
+	cast_pkgconf_list<pkgconf_fragment_t>(list, cat);
 	return strs;
 }
 
@@ -57,13 +58,14 @@ static std::vector<std::string> cast_string_fragment_list(pkgconf_list_t const &
 static std::vector<std::string> cast_dependency_fragment_list(pkgconf_list_t const &list)
 {
 	std::vector<std::string> deps;
-	cast_pkgconf_list<pkgconf_dependency_t>(list, [&](auto dep)
+	auto cat = [&](auto dep)
 	{
 		if (!dep || !dep->package) {
 			return;
 		}
 		deps.push_back(dep->package);
-	});
+	};
+	cast_pkgconf_list<pkgconf_dependency_t>(list, cat);
 	return deps;
 }
 
@@ -84,17 +86,17 @@ bool Pkgconf::find(std::string const &pkg_name)
 	info.cflags = join_strings(cast_string_fragment_list(pkg->cflags));
 	info.libs = join_strings(cast_string_fragment_list(pkg->libs));
 	info.libs_private = join_strings(cast_string_fragment_list(pkg->libs_private));
-	info.requires = cast_dependency_fragment_list(pkg->required);
-	info.requires_private = cast_dependency_fragment_list(pkg->requires_private);
-	_pkgs.insert({ pkg_name, info });
+	info.required = cast_dependency_fragment_list(pkg->required);
+	info.required_private = cast_dependency_fragment_list(pkg->requires_private);
+	_pkgs.insert({pkg_name, info});
 	pkgconf_pkg_unref(_client, pkg);
 
-	for (auto const &dep : info.requires) {
+	for (auto const &dep : info.required) {
 		if (!find(dep)) {
 			return false;
 		}
 	}
-	for (auto const &dep : info.requires_private) {
+	for (auto const &dep : info.required_private) {
 		if (!find(dep)) {
 			return false;
 		}
@@ -105,9 +107,9 @@ bool Pkgconf::find(std::string const &pkg_name)
 std::string Pkgconf::flags_no_recursively(
 	std::set<std::string> &stack,
 	std::string const &pkg_name,
-	std::string PkgInfo::* flags,
-	std::vector<std::string> PkgInfo::* requires,
-	std::vector<std::string> PkgInfo::* requires_private
+	std::string PkgInfo::*flags,
+	std::vector<std::string> PkgInfo::*required,
+	std::vector<std::string> PkgInfo::*required_private
 )
 {
 	if (stack.count(pkg_name)) {
@@ -121,14 +123,14 @@ std::string Pkgconf::flags_no_recursively(
 
 	auto &pkg = it->second;
 	auto ret = pkg.*flags;
-	if (requires) {
-		for (auto &dep : pkg.*requires) {
-			ret += ' ' + flags_no_recursively(stack, dep, flags, requires, requires_private);
+	if (required) {
+		for (auto &dep : pkg.*required) {
+			ret += ' ' + flags_no_recursively(stack, dep, flags, required, required_private);
 		}
 	}
-	if (requires_private) {
-		for (auto &dep : pkg.*requires_private) {
-			ret += ' ' + flags_no_recursively(stack, dep, flags, requires, requires_private);
+	if (required_private) {
+		for (auto &dep : pkg.*required_private) {
+			ret += ' ' + flags_no_recursively(stack, dep, flags, required, required_private);
 		}
 	}
 	return ret;
@@ -137,23 +139,11 @@ std::string Pkgconf::flags_no_recursively(
 std::string Pkgconf::cflags(std::string const &pkg_name)
 {
 	std::set<std::string> stack;
-	return flags_no_recursively(
-		stack,
-		pkg_name,
-		&PkgInfo::cflags,
-		&PkgInfo::requires,
-		&PkgInfo::requires_private
-	);
+	return flags_no_recursively(stack, pkg_name, &PkgInfo::cflags, &PkgInfo::required, &PkgInfo::required_private);
 }
 
 std::string Pkgconf::libs(std::string const &pkg_name)
 {
 	std::set<std::string> stack;
-	return flags_no_recursively(
-		stack,
-		pkg_name,
-		&PkgInfo::libs,
-		&PkgInfo::requires,
-		nullptr
-	);
+	return flags_no_recursively(stack, pkg_name, &PkgInfo::libs, &PkgInfo::required, nullptr);
 }

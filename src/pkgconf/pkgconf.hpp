@@ -19,11 +19,12 @@ class Pkgconf
 		// private only dynamic linking needed.
 		std::string cflags, libs, libs_private;
 		// pkgs those this pkg depands.
-		// `requires` need both cflags and libs,
+		// `required` need both cflags and libs,
 		// private only cflags needed (for dynamic linking).
-		std::vector<std::string> requires, requires_private;
+		std::vector<std::string> required, required_private;
 	};
-	std::map<std::string/* name */, PkgInfo> _pkgs; // cached pkg infos
+
+	std::map<std::string, PkgInfo> _pkgs; // cached pkg infos
 
 	friend bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, const void *data);
 
@@ -32,9 +33,9 @@ class Pkgconf
 	std::string flags_no_recursively(
 		std::set<std::string> &stack,
 		std::string const &pkg_name,
-		std::string PkgInfo::* flags,
-		std::vector<std::string> PkgInfo::* requires,
-		std::vector<std::string> PkgInfo::* requires_private
+		std::string PkgInfo::*flags,
+		std::vector<std::string> PkgInfo::*required,
+		std::vector<std::string> PkgInfo::*required_private
 	);
 
 public:
