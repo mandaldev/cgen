@@ -34,25 +34,37 @@ static inline std::string trim_string(std::string const &str)
 	return trim_string_left(trim_string_right(str));
 }
 
-/// join strings with `delimter`
+/// join two items with delimter
+/// if one item is empty then delimter will not be inserted
+template <typename Item, typename Delimter>
+static inline Item join_two_items(Item const &lhs, Item const &rhs, Delimter const &delimter)
+{
+	if (lhs.empty() || rhs.empty()) {
+		return lhs + rhs;
+	}
+	return lhs + delimter + rhs;
+}
+
+/// join items with `delimter`
+/// if one item is empty then delimter will not be inserted
 template <typename ItorFirst, typename ItorLast, typename Delimter>
-static inline std::string join_strings(ItorFirst begin, ItorLast end, Delimter const &delimter)
+static inline auto join_items(ItorFirst begin, ItorLast end, Delimter const &delimter)
 {
 	if (begin == end) {
-		return "";
+		return decltype(*begin + *begin)();
 	}
 	auto ret = *begin;
 	while (++begin != end) {
-		ret += delimter;
-		ret += *begin;
+		ret = join_two_items(ret, *begin, delimter);
 	}
 	return ret;
 }
 
-/// join strings with `delimter` (default as one space)
-static inline std::string join_strings(std::vector<std::string> const &strs, std::string const &delimter = " "s)
+/// join strings with `delimter`
+/// if one item is empty then delimter will not be inserted
+static inline std::string join_strings(std::vector<std::string> const &strs, std::string const &delimter)
 {
-	return join_strings(strs.begin(), strs.end(), delimter);
+	return join_items(strs.begin(), strs.end(), delimter);
 }
 
 static inline auto split_string(std::string const &str, std::string const &delims)
