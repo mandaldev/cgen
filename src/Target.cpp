@@ -165,7 +165,7 @@ bool Target::load(std::string const &name, Mas::Map const &target_mas)
 		}
 		_dep = {dep.begin(), dep.end()};
 	}
-	return load_pkgconfs(target_mas);
+	return load_pkgconfs(target_mas) && load_installs(target_mas);
 }
 
 std::string Target::name() const
