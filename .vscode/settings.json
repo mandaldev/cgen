@@ -1,5 +1,6 @@
 {
         "files.associations": {
+                "*.clang-format": "yaml",
                 "*.tcc": "cpp",
                 "string": "cpp",
                 "unordered_map": "cpp",
@@ -14,6 +15,9 @@
                 "new": "cpp",
                 "stdexcept": "cpp",
                 "thread": "cpp",
-                "tuple": "cpp"
+                "tuple": "cpp",
+                "atomic": "cpp",
+                "memory_resource": "cpp",
+                "stop_token": "cpp"
         }
 }

@@ -6,8 +6,9 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [],
-            "cStandard": "c17",
             "cppStandard": "c++17",
+            "compilerPath": "/usr/bin/gcc",
+            "intelliSenseMode": "linux-gcc-x64",
             "compileCommands": "${workspaceFolder}/build/debug/compile_commands.json"
         }
     ],
