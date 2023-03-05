@@ -14,19 +14,35 @@
 ///   "string as key" [ "this" "is" "ok" ]
 ///   key1 [ "special" "key" "can" "avoid" "quoting" ]
 ///   map_value {
-///     "1" "a nested map"
+///     1 "a nested map"
 ///   }
 /// }
 /// ```
 ///
 /// As that: Mas stands for Map(M), Array(A), and String(S).
 /// So simple that no ',' marks needed.
-
+///
+/// value: map | array | string
+/// map: '{' ws key_value_pairs ws '}'
+/// array: '[' ws values ws ']'
+/// string: '"' escaped_bytes '"'
+/// key_value_pairs: key ws value
+/// key: string | key_chars
+/// key_chars: key_char+
+/// values: value+
+/// escaped_bytes: (escaped_quote | escaped_backslash | ~(quote | escape))*
+/// quote: '"'
+/// escape: '\'
+/// escaped_quote: '\"'
+/// escaped_backslash: '\\'
+///
+/// ws: white_space*
+/// key_char: a-zA-Z0-9!@#$%^&*()_-=+|~;,<>/?
 namespace Mas {
 
 class Value;
 
-/// Mas string type, sam as std::string
+/// Mas string type, same as std::string
 using String = std::string;
 /// Mas array type, vector of Value
 using Array = std::vector<Value>;
