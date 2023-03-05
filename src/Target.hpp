@@ -68,7 +68,7 @@ public:
 	Target &operator=(Target const &) = delete;
 
 	/// load target data from mas
-	bool load(Mas::Map const &target_mas);
+	bool load(std::string const &name, Mas::Map const &target_mas);
 
 	std::string name() const;
 

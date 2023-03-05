@@ -110,10 +110,14 @@ bool Target::load_installs(Mas::Map const &target_mas)
 	return true;
 }
 
-bool Target::load(Mas::Map const &target_mas)
+bool Target::load(std::string const &name, Mas::Map const &target_mas)
 {
 	std::string lang, type;
-	Mas::get_string(target_mas, NAME, _name);
+	if (name.size()) {
+		_name = name;
+	} else {
+		Mas::get_string(target_mas, NAME, _name);
+	}
 	Mas::get_string(target_mas, LANG, lang);
 	Mas::get_string(target_mas, STD, _std);
 	Mas::get_string(target_mas, TYPE, type);

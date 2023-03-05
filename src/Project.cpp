@@ -14,13 +14,14 @@ static const auto TARGET = "target";
 
 static bool load_target(
 	Project *project,
+	std::string const &target_name,
 	Mas::Map const &m,
 	std::map<std::string, std::shared_ptr<Target>> &targets,
 	std::map<std::string, std::shared_ptr<Target>> &templates
 )
 {
 	auto target = std::make_shared<Target>(project);
-	if (!target->load(m)) {
+	if (!target->load(target_name, m)) {
 		std::cerr << "Load target failed\n";
 		return false;
 	}
@@ -58,8 +59,8 @@ bool Project::load(Mas::Map const &project_mas)
 
 	auto it = project_mas.find(TARGET);
 	if (it != project_mas.end()) {
-		if (!it->second.is_array()) {
-			std::cerr << "Target must be array value\n";
+		if (it->second.is_string()) {
+			std::cerr << "Target must be array or map value\n";
 			return false;
 		}
 		for (auto &m : it->second.array_or({})) {
@@ -67,7 +68,16 @@ bool Project::load(Mas::Map const &project_mas)
 				std::cerr << "member of 'target' must be map value\n";
 				return false;
 			}
-			if (!load_target(this, m.map_or({}), _targets, _templates)) {
+			if (!load_target(this, {}, m.map_or({}), _targets, _templates)) {
+				return false;
+			}
+		}
+		for (auto &m : it->second.map_or({})) {
+			if (!m.second.is_map()) {
+				std::cerr << "member of 'target' must be map value\n";
+				return false;
+			}
+			if (!load_target(this, m.first, m.second.map_or({}), _targets, _templates)) {
 				return false;
 			}
 		}
