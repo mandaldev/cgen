@@ -10,6 +10,8 @@ class Project
 	std::string _author;
 	std::string _email;
 	std::string _license;
+	std::string _desc;
+
 	std::map<std::string, std::shared_ptr<Target>> _targets, _templates;
 
 	Pkgconf _pkgconf;
@@ -23,6 +25,16 @@ public:
 	Project() = default;
 	Project(Project const &) = delete;
 	Project &operator=(Project const &) = delete;
+
+	std::string const &name() const;
+
+	std::string const &author() const;
+
+	std::string const &email() const;
+
+	std::string const &license() const;
+
+	std::string const &desc() const;
 
 	std::map<std::string, std::shared_ptr<Target>> const &targets() const;
 

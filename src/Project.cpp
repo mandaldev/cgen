@@ -10,6 +10,7 @@ static const auto NAME = "name";
 static const auto AUTHOR = "author";
 static const auto EMAIL = "email";
 static const auto LICENSE = "license";
+static const auto DESC = "desc";
 static const auto TARGET = "target";
 
 static bool load_target(
@@ -56,6 +57,7 @@ bool Project::load(Mas::Map const &project_mas)
 	Mas::get_string(project_mas, AUTHOR, _author);
 	Mas::get_string(project_mas, EMAIL, _email);
 	Mas::get_string(project_mas, LICENSE, _license);
+	Mas::get_string(project_mas, DESC, _desc);
 
 	auto it = project_mas.find(TARGET);
 	if (it != project_mas.end()) {
@@ -162,6 +164,31 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 		}
 	}
 	return target->gen(opt_cdb);
+}
+
+std::string const &Project::name() const
+{
+	return _name;
+}
+
+std::string const &Project::author() const
+{
+	return _author;
+}
+
+std::string const &Project::email() const
+{
+	return _email;
+}
+
+std::string const &Project::license() const
+{
+	return _license;
+}
+
+std::string const &Project::desc() const
+{
+	return _desc;
 }
 
 bool Project::gen(std::optional<Cdb> &opt_cdb) const
