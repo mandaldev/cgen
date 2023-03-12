@@ -49,4 +49,24 @@ int exec(std::string const &cmd, std::string const &tmpname, std::string &stdout
 	return ret;
 }
 
+std::filesystem::path exec_path()
+{
+	std::error_code ec{};
+	return std::filesystem::read_symlink("/proc/self/exe", ec);
+}
+
+std::filesystem::path exec_install_prefix()
+{
+	auto p = exec_path();
+	if (p.empty()) {
+		return p;
+	}
+	auto name = p.filename();
+	auto prefix = p.parent_path().parent_path();
+	if (prefix / "bin" / name == p) {
+		return prefix;
+	}
+	return {};
+}
+
 } // namespace XO
