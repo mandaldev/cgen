@@ -96,17 +96,20 @@ static std::string files_comment(std::string const &author, std::string const &d
 	return oss.str();
 }
 
-static std::string header_fence_of_dir(std::filesystem::path const &file_dir)
+static std::string header_fence_of_dir(std::filesystem::path const &file_dir, std::string const &project_name)
 {
 	auto root = std::filesystem::current_path();
 	auto rel_path = file_dir.lexically_relative(root);
 	std::ostringstream oss;
+	if (project_name.size()) {
+		oss << project_name << '_';
+	}
 	for (auto &node : rel_path) {
 		if (!node.empty()) {
-			oss << string_uppercase_all(node.string()) << "_";
+			oss << node.string() << '_';
 		}
 	}
-	return oss.str();
+	return string_uppercase_all(oss.str());
 }
 
 static std::filesystem::path validate_file_path(std::filesystem::path const &dir, std::string const &file_name)
@@ -320,7 +323,7 @@ bool Driver::gen_files(
 	bool is_header = type == "h" || type == "hpp";
 	std::string dir_fence;
 	if (is_header && _has_project) {
-		dir_fence = header_fence_of_dir(_file_dir);
+		dir_fence = header_fence_of_dir(_file_dir, _project.name());
 	}
 
 	for (auto &name : names) {
