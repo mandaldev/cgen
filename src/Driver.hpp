@@ -16,7 +16,7 @@ class Driver
 	int _argc = 0;
 	char const *const *_argv = nullptr;
 	XO::CommandLine _cmdline;
-	std::map<std::string, std::function<int()>> _cmd;
+	std::map<std::string, std::function<bool()>> _cmd;
 
 	bool _has_project = false;
 	std::filesystem::path _old_cwd;
@@ -31,17 +31,17 @@ class Driver
 
  	std::string _file_front;
 
-	int load_project();
+	bool load_project();
 
-	int help();
+	bool help();
 
-	int build();
+	bool build();
 
-	int install();
+	bool install();
 
-	int gen_project();
+	bool gen_project();
 
-	int gen_class(std::vector<std::string> const &names);
+	bool gen_class(std::vector<std::string> const &names);
 
 	void setup_data_dirs();
 
@@ -49,7 +49,7 @@ class Driver
 
 	void setup_files_options();
 
-	int gen_files(
+	bool gen_files(
 		std::vector<std::string> const &names,
 		std::string const &type,
 		bool match_header,
@@ -58,7 +58,7 @@ class Driver
 public:
 	Driver(int argc, char const *const *argv);
 
-	int run();
+	bool run();
 
 }; // class Driver
 

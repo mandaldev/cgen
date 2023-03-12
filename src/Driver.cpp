@@ -167,16 +167,16 @@ Driver::Driver(int argc, char const *const *argv)
 	};
 }
 
-int Driver::run()
+bool Driver::run()
 {
 	if (_argc == 1) {
 		help();
-		return 0;
+		return true;
 	}
 	if (!_cmdline.is_valid()) {
 		std::cerr << "Invalid option or argument, see Usage\n\n";
 		help();
-		return 1;
+		return false;
 	}
 	auto cmd = _argv[1];
 	auto it = _cmd.find(cmd);
@@ -184,33 +184,33 @@ int Driver::run()
 		return it->second();
 	}
 	std::cerr << "Unknown commond: " << cmd << "\n";
-	return 1;
+	return false;
 }
 
-int Driver::load_project()
+bool Driver::load_project()
 {
 	auto res = chroot();
 	if (!res.first) {
 		std::cerr << "Not a cgen project path\n";
-		return 1;
+		return false;
 	}
 	_old_cwd = res.second;
 
 	auto mas = load_project_mas();
 	if (!mas.has_value() || !mas.value().is_map()) {
 		std::cerr << "Not a valid cgen project file\n";
-		return 1;
+		return false;
 	}
 
 	if (!_project.load(mas.value().as_map())) {
 		std::cerr << "Failed to load cgen project file\n";
-		return 1;
+		return false;
 	}
 	_has_project = true;
-	return 0;
+	return true;
 }
 
-int Driver::help()
+bool Driver::help()
 {
 	auto args = _cmdline.get_arguments();
 	if (args.size()) {
@@ -229,13 +229,13 @@ int Driver::help()
 		}
 	}
 	std::cerr << HELP_MSG;
-	return 0;
+	return true;
 }
 
-int Driver::build()
+bool Driver::build()
 {
-	if (auto ecode = load_project()) {
-		return ecode;
+	if (!load_project()) {
+		return false;
 	}
 	std::optional<Cdb> opt_cdb;
 	if (_cmdline.has_switch("cdb")) {
@@ -243,46 +243,46 @@ int Driver::build()
 	}
 	if (!_project.configure(opt_cdb)) {
 		std::cerr << "Failed to configure project\n";
-		return 1;
+		return false;
 	}
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return _project.build_all_targets() ? 0 : 1;
+		return _project.build_all_targets();
 	}
 	for (auto const &name : targets_name) {
 		if (!_project.build_target(name)) {
 			std::cerr << "Aborting...\n";
-			return 1;
+			return false;
 		}
 	}
-	return 0;
+	return true;
 }
 
-int Driver::install()
+bool Driver::install()
 {
-	if (auto ecode = load_project()) {
-		return ecode;
+	if (!load_project()) {
+		return false;
 	}
 	std::filesystem::path prefix = _cmdline.get_switch("prefix").value_or("/usr/local");
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return _project.install_all_targets(prefix) ? 0 : 1;
+		return _project.install_all_targets(prefix);
 	}
 	for (auto const &name : targets_name) {
 		if (!_project.install_target(prefix, name)) {
 			std::cerr << "Aborting...\n";
-			return 1;
+			return false;
 		}
 	}
-	return 0;
+	return true;
 }
 
-int Driver::gen_project()
+bool Driver::gen_project()
 {
-	return 0;
+	return true;
 }
 
-int Driver::gen_class(std::vector<std::string> const &names)
+bool Driver::gen_class(std::vector<std::string> const &names)
 {
 	for (auto &name : names) {
 		std::string code;
@@ -303,10 +303,10 @@ int Driver::gen_class(std::vector<std::string> const &names)
 		code += "}\n";
 		gen_files({name}, "cpp", true, code);
 	}
-	return 0;
+	return true;
 }
 
-int Driver::gen_files(
+bool Driver::gen_files(
 	std::vector<std::string> const &names,
 	std::string const &type,
 	bool match_header,
@@ -314,7 +314,7 @@ int Driver::gen_files(
 )
 {
 	if (_file_dir.empty()) {
-		return 1;
+		return false;
 	}
 
 	bool is_header = type == "h" || type == "hpp";
@@ -349,10 +349,10 @@ int Driver::gen_files(
 			buf += code;
 		}
 		if (!write_file(_file_dir / file_name, buf)) {
-			return 1;
+			return false;
 		}
 	}
-	return 0;
+	return true;
 }
 
 void Driver::setup_data_dirs()
