@@ -1,7 +1,8 @@
 {
   name "hw"
   author "Mandal Dev"
-  license "GPL-3.0"
+  desc "cgen demo project: hello world"
+  license "GPLv3"
 
   target [
     {

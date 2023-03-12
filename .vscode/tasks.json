@@ -6,7 +6,28 @@
 		{
 			"label": "build",
 			"type": "shell",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
 			"command": "cgen build -cdb"
+		},
+		{
+			"label": "pack",
+			"type": "shell",
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "shared",
+				"showReuseMessage": true,
+				"clear": false
+			},
+			"command": "./build/debug/cgen install --prefix=build/cgen-debug-pack"
 		}
 	]
 }

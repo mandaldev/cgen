@@ -18,6 +18,7 @@
                 "tuple": "cpp",
                 "atomic": "cpp",
                 "memory_resource": "cpp",
-                "stop_token": "cpp"
+                "stop_token": "cpp",
+                "typeinfo": "cpp"
         }
 }
