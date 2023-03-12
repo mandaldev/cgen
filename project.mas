@@ -1,11 +1,11 @@
 {
   name "cgen"
   author "Mandal Dev"
-  license "GPL-3.0"
+  desc "A C and C++ stuff generator"
+  license "GPLv3"
 
-  target [
-    {
-      name "cgen"
+  target {
+    cgen {
       language "c++"
       std "c++17"
       type "exe"
@@ -27,9 +27,21 @@
       pkgconf [
         "libpkgconf"
       ]
+
+      install [
+        {
+          dir "share/cgen/licenses"
+          files [
+            "share/cgen/licenses/GPLv3"
+            "share/cgen/licenses/GPLv3.header"
+            "share/cgen/licenses/LGPLv3"
+            "share/cgen/licenses/LGPLv3.header"
+          ]
+        }
+      ]
     }
-    {
-      name "mas"
+
+    mas {
       language "c++"
       std "c++17"
       type "slib"
@@ -47,8 +59,8 @@
         }
       ]
     }
-    {
-      name "xo"
+
+    xo {
       language "c++"
       std "c++17"
       type "slib"
@@ -68,5 +80,5 @@
         }
       ]
     }
-  ]
+  }
 }

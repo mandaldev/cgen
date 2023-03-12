@@ -19,6 +19,8 @@ enum class TargetType {
 
 static std::string const PROJECT_MAS = "project.mas";
 
+static const auto LICENSES_FOLDER = "licenses";
+
 static inline std::string trim_string_left(std::string const &str)
 {
 	auto pos = std::find_if_not(str.begin(), str.end(), [](auto c) { return std::isspace(c); });
