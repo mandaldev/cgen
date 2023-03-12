@@ -3,6 +3,8 @@
 #include <string>
 #include <cctype>
 #include <algorithm>
+#include <ctime>
+#include <locale>
 
 using namespace std::literals;
 
@@ -80,6 +82,51 @@ static inline auto split_string(std::string const &str, std::string const &delim
 		strs.push_back(std::string(str.data() + b, str.data() + (e == str.npos ? str.size() : e)));
 	}
 	return strs;
+}
+
+namespace Date {
+
+namespace Now {
+
+static inline unsigned int year()
+{
+	auto time = std::time(nullptr);
+	auto tm = *std::localtime(&time);
+	return tm.tm_year + 1900;
+}
+
+static inline unsigned int month()
+{
+	auto time = std::time(nullptr);
+	auto tm = *std::localtime(&time);
+	return tm.tm_mon + 1;
+}
+
+static inline unsigned int month_day()
+{
+	auto time = std::time(nullptr);
+	auto tm = *std::localtime(&time);
+	return tm.tm_mday;
+}
+
+}
+
+}
+
+static inline std::string string_uppercase_all(std::string str)
+{
+	for (auto &c : str) {
+		c = std::toupper(c);
+	}
+	return str;
+}
+
+static inline std::string string_lowercase_all(std::string str)
+{
+	for (auto &c : str) {
+		c = std::tolower(c);
+	}
+	return str;
 }
 
 #endif
