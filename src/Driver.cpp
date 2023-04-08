@@ -399,7 +399,7 @@ void Driver::setup_files_options()
 	auto project_name = _project.name();
 	_file_front = files_comment(
 		_author,
-		project_name.size() ? project_name + " -- " + _desc : _desc,
+		project_name.size() ? project_name + " - " + _desc : _desc,
 		load_license_header(files_option_license(_cmdline, _project.license()))
 	);
 }
