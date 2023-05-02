@@ -368,6 +368,12 @@ bool Driver::gen_project(std::string const &name)
 		return false;
 	}
 
+	std::filesystem::current_path(_file_dir, ec);
+	if (ec) {
+		std::cerr << "Error: failed cd to project directory: " << ec << "\n";
+		return false;
+	}
+
 	if (!write_file(_file_dir / "project.mas", cgen)) {
 		return false;
 	}
