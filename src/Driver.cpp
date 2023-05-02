@@ -407,7 +407,7 @@ bool Driver::gen_class(std::vector<std::string> const &names)
 		code += "};\n";
 		gen_files(_file_dir, {name}, "hpp", false, code);
 		code.clear();
-		code += name + "::" + name + "()\n";
+		code += "\n" + name + "::" + name + "()\n";
 		code += "{\n";
 		code += "}\n\n";
 		code += name + "::~" + name + "()\n";
@@ -452,9 +452,9 @@ bool Driver::gen_files(
 		} else if (match_header) {
 			std::string include = "#include \"" + name + ".";
 			if (type == "cpp") {
-				include += "hpp\"\n\n";
+				include += "hpp\"\n";
 			} else if (type == "c") {
-				include += "h\"\n\n";
+				include += "h\"\n";
 			} else {
 				include = "";
 			}
