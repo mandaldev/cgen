@@ -33,7 +33,7 @@ class Driver
 
 	bool load_project();
 
-	bool help();
+	bool help(std::string const &cmd);
 
 	bool build();
 

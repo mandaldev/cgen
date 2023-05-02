@@ -139,7 +139,7 @@ Driver::Driver(int argc, char const *const *argv)
 , _argv(argv)
 , _cmdline(argc - 1, argv + 1)
 {
-	_cmd["help"] = [&]() { return help(); };
+	_cmd["help"] = [&]() { return help(""); };
 	_cmd["build"] = [&]() { return build(); };
 	_cmd["install"] = [&]() { return install(); };
 	_cmd["project"] = [&]() { return gen_project(); };
@@ -173,12 +173,12 @@ Driver::Driver(int argc, char const *const *argv)
 bool Driver::run()
 {
 	if (_argc == 1) {
-		help();
+		help("");
 		return true;
 	}
 	if (!_cmdline.is_valid()) {
 		std::cerr << "Invalid option or argument, see Usage\n\n";
-		help();
+		help("");
 		return false;
 	}
 	auto cmd = _argv[1];
@@ -213,25 +213,24 @@ bool Driver::load_project()
 	return true;
 }
 
-bool Driver::help()
+bool Driver::help(std::string const &cmd)
 {
 	auto args = _cmdline.get_arguments();
-	if (args.size()) {
-		std::map<std::string, std::string> cmd_help = {
-			{ "build", HELP_BUILD },
-			{ "project", HELP_BUILD },
-			{ "class", HELP_FILES },
-			{ "cpp", HELP_FILES },
-			{ "hpp", HELP_FILES },
-			{ "c", HELP_FILES },
-			{ "h", HELP_FILES },
-		};
-		auto it = cmd_help.find(args[0]);
-		if (it != cmd_help.end()) {
-			std::cerr << it->second;
-		}
+	std::map<std::string, std::string> cmd_help = {
+		{ "build", HELP_BUILD },
+		{ "project", HELP_BUILD },
+		{ "class", HELP_FILES },
+		{ "cpp", HELP_FILES },
+		{ "hpp", HELP_FILES },
+		{ "c", HELP_FILES },
+		{ "h", HELP_FILES },
+	};
+	auto it = cmd_help.find(cmd.size() || args.empty() ? cmd : args[0]);
+	if (it != cmd_help.end()) {
+		std::cerr << it->second;
+	} else {
+		std::cerr << HELP_MSG;
 	}
-	std::cerr << HELP_MSG;
 	return true;
 }
 
