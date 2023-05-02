@@ -56,7 +56,7 @@ static std::string files_option_author(XO::CommandLine const &cmdline, std::stri
 
 static std::string files_option_license(XO::CommandLine const &cmdline, std::string def)
 {
-	return cmdline.get_switch("license").value_or(def);
+	return cmdline.get_switch("license").value_or(def.empty() ? "GPLv3" : def);
 }
 
 static std::string files_option_desc(XO::CommandLine const &cmdline, std::string def)
@@ -142,31 +142,40 @@ Driver::Driver(int argc, char const *const *argv)
 	_cmd["help"] = [&]() { return help(""); };
 	_cmd["build"] = [&]() { return build(); };
 	_cmd["install"] = [&]() { return install(); };
-	_cmd["project"] = [&]() { return gen_project(); };
+	_cmd["project"] = [&]()
+	{
+		auto args = _cmdline.get_arguments();
+		if (args.size() != 1) {
+			help("project");
+			return false;
+		}
+		setup_files_options(false);
+		return gen_project(args[0]);
+	};
 	_cmd["class"] = [&]()
 	{
-		setup_files_options();
+		setup_files_options(true);
 		return gen_class(_cmdline.get_arguments());
 	};
 	_cmd["cpp"] = [&]()
 	{
-		setup_files_options();
-		return gen_files(_cmdline.get_arguments(), "cpp", false, "");
+		setup_files_options(true);
+		return gen_files(_file_dir, _cmdline.get_arguments(), "cpp", false, "");
 	};
 	_cmd["hpp"] = [&]()
 	{
-		setup_files_options();
-		return gen_files(_cmdline.get_arguments(), "hpp", false, "");
+		setup_files_options(true);
+		return gen_files(_file_dir, _cmdline.get_arguments(), "hpp", false, "");
 	};
 	_cmd["c"] = [&]()
 	{
-		setup_files_options();
-		return gen_files(_cmdline.get_arguments(), "c", false, "");
+		setup_files_options(true);
+		return gen_files(_file_dir, _cmdline.get_arguments(), "c", false, "");
 	};
 	_cmd["h"] = [&]()
 	{
-		setup_files_options();
-		return gen_files(_cmdline.get_arguments(), "h", false, "");
+		setup_files_options(true);
+		return gen_files(_file_dir, _cmdline.get_arguments(), "h", false, "");
 	};
 }
 
@@ -279,8 +288,104 @@ bool Driver::install()
 	return true;
 }
 
-bool Driver::gen_project()
+static const auto MAIN_CODE = R"(
+int main(int argc, const char *argv[])
 {
+	return 0;
+}
+)";
+
+static const auto LIB_HEAD_CODE = R"(
+void do_something();
+)";
+
+static const auto LIB_DECL_CODE = R"(
+void do_something()
+{
+}
+)";
+
+bool Driver::gen_project(std::string const &name)
+{
+	auto lang = _cmdline.get_switch("lang").value_or("c++");
+	if (lang != "c++" && lang != "c") {
+		std::cerr << "Error: wrong 'lang' type, only 'c' or 'c++' supported!\n";
+		return false;
+	}
+	auto std = _cmdline.get_switch("std").value_or("c++17");
+	auto type = _cmdline.get_switch("type").value_or("bin");
+	if (type != "bin" && type != "slib" && type != "dlib") {
+		std::cerr << "Error: wrong 'target' type, only 'bin', 'slib' or 'dlib' supported!\n";
+		return false;
+	}
+	struct Files
+	{
+		std::string name;
+		std::string type;
+		bool match_header;
+		std::string code;
+	};
+	std::vector<Files> files;
+	if (type == "bin") {
+		files.push_back(Files{"main", lang == "c" ? "c" : "cpp", false, MAIN_CODE});
+	} else if (type == "slib" || type == "dlib") {
+		files.push_back(Files{name, lang == "c" ? "c" : "cpp", true, LIB_DECL_CODE});
+		files.push_back(Files{name, lang == "c" ? "h" : "hpp", true, LIB_HEAD_CODE});
+	}
+
+	std::string cgen;
+	cgen += "{\n";
+	cgen += "  name \"" + name + "\"\n";
+	cgen += "  author \"" + _author + "\"\n";
+	cgen += "  desc \"" + _desc + "\"\n";
+	cgen += "  license \"" + _license + "\"\n";
+	cgen += "\n";
+	cgen += "  target {\n";
+	cgen += "    " + name + " {\n";
+	cgen += "      language \"" + lang + "\"\n";
+	cgen += "      std \"" + std + "\"\n";
+	cgen += "      type \"" + type + "\"\n";
+	cgen += "\n";
+	cgen += "      src [\n";
+	cgen += "        \"src/" + files[0].name + "." + files[0].type + "\"\n";
+	cgen += "      ]\n";
+	cgen += "    }\n";
+	cgen += "  }\n";
+	cgen += "}\n";
+
+	if (_file_dir.empty()) {
+		_file_dir = ".";
+	}
+	_file_dir /= name;
+	std::error_code ec{};
+	if (!std::filesystem::create_directory(_file_dir, ec) || ec) {
+		std::cerr << "Error: failed to create project directory: " << ec << "\n";
+		return false;
+	}
+
+	if (!write_file(_file_dir / "project.mas", cgen)) {
+		return false;
+	}
+
+	auto license_txt = load_license(_license);
+	if (license_txt.size()) {
+		if (!write_file(_file_dir / "LICENSE", license_txt)) {
+			return false;
+		}
+	}
+
+	auto src = _file_dir / "src";
+	if (!std::filesystem::create_directory(src, ec) || ec) {
+		std::cerr << "Error: failed to create src directory: " << ec << "\n";
+		return false;
+	}
+
+	for (auto &file : files) {
+		if (!gen_files(src, {file.name}, file.type, file.match_header, file.code)) {
+			return false;
+		}
+	}
+
 	return true;
 }
 
@@ -295,7 +400,7 @@ bool Driver::gen_class(std::vector<std::string> const &names)
 		code += "\t~" + name + "();\n";
 		code += "private:\n";
 		code += "};\n";
-		gen_files({name}, "hpp", false, code);
+		gen_files(_file_dir, {name}, "hpp", false, code);
 		code.clear();
 		code += name + "::" + name + "()\n";
 		code += "{\n";
@@ -303,31 +408,32 @@ bool Driver::gen_class(std::vector<std::string> const &names)
 		code += name + "::~" + name + "()\n";
 		code += "{\n";
 		code += "}\n";
-		gen_files({name}, "cpp", true, code);
+		gen_files(_file_dir, {name}, "cpp", true, code);
 	}
 	return true;
 }
 
 bool Driver::gen_files(
+	std::filesystem::path const &file_dir,
 	std::vector<std::string> const &names,
 	std::string const &type,
 	bool match_header,
 	std::string const &code
 )
 {
-	if (_file_dir.empty()) {
+	if (file_dir.empty()) {
 		return false;
 	}
 
 	bool is_header = type == "h" || type == "hpp";
 	std::string dir_fence;
 	if (is_header && _has_project) {
-		dir_fence = header_fence_of_dir(_file_dir, _project.name());
+		dir_fence = header_fence_of_dir(file_dir, _project.name());
 	}
 
 	for (auto &name : names) {
 		auto file_name = name + "." + type;
-		auto h_path = validate_file_path(_file_dir, file_name);
+		auto h_path = validate_file_path(file_dir, file_name);
 		if (h_path.empty()) {
 			continue;
 		}
@@ -350,7 +456,7 @@ bool Driver::gen_files(
 			buf += include;
 			buf += code;
 		}
-		if (!write_file(_file_dir / file_name, buf)) {
+		if (!write_file(file_dir / file_name, buf)) {
 			return false;
 		}
 	}
@@ -373,32 +479,49 @@ void Driver::setup_data_dirs()
 	}
 }
 
-std::string Driver::load_license_header(std::string const &license_name)
+std::string Driver::load_runtime_file(std::filesystem::path const & path)
 {
 	if (_data_dirs.empty()) {
 		setup_data_dirs();
 	}
 	for (auto &dir : _data_dirs) {
-		auto p = dir / LICENSES_FOLDER / (license_name + ".header");
+		auto p = dir / path;
+		std::error_code ec{};
+		if (!std::filesystem::exists(p, ec) || ec) {
+			continue;
+		}
 		auto buf = load_file(p);
 		if (buf.size()) {
 			return buf;
 		}
 	}
-	std::cerr << "Warning: license header not found: " << license_name << "\n";
+	std::cerr << "Warning: file not found at any runtime folders: " << path << "\n";
 	return {};
 }
 
-void Driver::setup_files_options()
+std::string Driver::load_license(std::string const &license_name)
 {
-	load_project();
+	return load_runtime_file(std::filesystem::path(LICENSES_FOLDER) / license_name);
+}
+
+std::string Driver::load_license_header(std::string const &license_name)
+{
+	return load_runtime_file(std::filesystem::path(LICENSES_FOLDER) / (license_name + ".header"));
+}
+
+void Driver::setup_files_options(bool preload_project)
+{
+	if (preload_project) {
+		load_project();
+	}
 	_author = files_option_author(_cmdline, _project.author());
 	_desc = files_option_desc(_cmdline, _project.desc());
 	_file_dir = files_option_dir(_cmdline, _old_cwd);
+	_license = files_option_license(_cmdline, _project.license());
 	auto project_name = _project.name();
 	_file_front = files_comment(
 		_author,
 		project_name.size() ? project_name + " - " + _desc : _desc,
-		load_license_header(files_option_license(_cmdline, _project.license()))
+		load_license_header(_license)
 	);
 }

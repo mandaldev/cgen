@@ -50,7 +50,8 @@ options:
   --license=LICENSE        which license your new project is licensed with
   --desc=DESC              description about project
   --lang=c|c++
-  --target=bin|slib|dlib   add a specific type target in new project
+  --std=c11|c++17|...
+  --type=bin|slib|dlib   add a specific target type in new project
 )";
 
 static const auto HELP_FILES = R"(cgen class|cpp|hpp|c|h - gen new C/C++ class, sources files...

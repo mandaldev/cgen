@@ -39,17 +39,22 @@ class Driver
 
 	bool install();
 
-	bool gen_project();
+	bool gen_project(std::string const &name);
 
 	bool gen_class(std::vector<std::string> const &names);
 
 	void setup_data_dirs();
 
+	std::string load_runtime_file(std::filesystem::path const &path);
+
+	std::string load_license(std::string const &license_name);
+
 	std::string load_license_header(std::string const &license_name);
 
-	void setup_files_options();
+	void setup_files_options(bool preload_project);
 
 	bool gen_files(
+		std::filesystem::path const &file_dir,
 		std::vector<std::string> const &names,
 		std::string const &type,
 		bool match_header,
