@@ -3,6 +3,23 @@
 #include "xo/exec.hpp"
 #include <sstream>
 
+static std::string to_valid_fence_string(std::string const &str)
+{
+	auto fence = '_' + str + '_';
+	for (auto &c : fence) {
+		c = std::toupper(c);
+		switch (c) {
+		case 'A' ... 'Z':
+		case '0' ... '9':
+		case '_':
+			continue;
+		default:
+			c = '_';
+		}
+	}
+	return fence;
+}
+
 // return:
 //   first: chroot succeed or not
 //   second: old cwd
@@ -114,7 +131,7 @@ static std::string header_fence_of_dir(std::filesystem::path const &file_dir, st
 			oss << node.string() << '_';
 		}
 	}
-	return string_uppercase_all(oss.str());
+	return oss.str();
 }
 
 static std::filesystem::path validate_file_path(std::filesystem::path const &dir, std::string const &file_name)
@@ -450,7 +467,7 @@ bool Driver::gen_files(
 		if (h_path.empty()) {
 			continue;
 		}
-		auto fence = dir_fence + string_uppercase_all(name + '_' + type);
+		auto fence = to_valid_fence_string(dir_fence + name + '_' + type);
 		auto buf = _file_front;
 		if (is_header) {
 			buf += "#ifndef " + fence + '\n';
