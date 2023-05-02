@@ -249,7 +249,7 @@ bool Driver::help(std::string const &cmd)
 	auto args = _cmdline.get_arguments();
 	std::map<std::string, std::string> cmd_help = {
 		{ "build", HELP_BUILD },
-		{ "project", HELP_BUILD },
+		{ "project", HELP_PROJECT },
 		{ "class", HELP_FILES },
 		{ "cpp", HELP_FILES },
 		{ "hpp", HELP_FILES },
