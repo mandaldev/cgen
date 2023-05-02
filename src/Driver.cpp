@@ -21,7 +21,7 @@ static std::pair<bool, std::filesystem::path> chroot()
 	return {true, old_cwd};
 }
 
-static std::string load_file(std::filesystem::path const &p)
+static std::optional<std::string> load_file(std::filesystem::path const &p)
 {
 	std::error_code ec {};
 	auto size = std::filesystem::file_size(p, ec);
@@ -37,8 +37,13 @@ static std::string load_file(std::filesystem::path const &p)
 static std::optional<Mas::Value> load_project_mas()
 {
 	auto buf = load_file(PROJECT_MAS);
-	if (buf.size()) {
-		return Mas::decode(buf);
+	if (buf) {
+		if (buf.value().size()) {
+			return Mas::decode(buf.value());
+		} else {
+			std::cerr << "Error: file " << PROJECT_MAS << " is empty\n";
+			return {};
+		}
 	} else {
 		std::cerr << "Error: read " << PROJECT_MAS << " failed\n";
 		return {};
@@ -491,8 +496,8 @@ std::string Driver::load_runtime_file(std::filesystem::path const & path)
 			continue;
 		}
 		auto buf = load_file(p);
-		if (buf.size()) {
-			return buf;
+		if (buf) {
+			return buf.value();
 		}
 	}
 	std::cerr << "Warning: file not found at any runtime folders: " << path << "\n";
