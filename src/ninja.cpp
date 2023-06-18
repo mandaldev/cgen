@@ -18,7 +18,7 @@ static std::string gen_ninja_rules()
 		 "\n"
 
 		 "rule " + NINJA_RULE_LINK_SLIB + "\n"
-		 "    command = ar cs $out $in\n"
+		 "    command = rm -f $out; ar -crs $out $in\n"
 		 "\n"
 
 		 "rule " + NINJA_RULE_LINK_DLIB + "\n"
