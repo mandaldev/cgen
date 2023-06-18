@@ -27,7 +27,7 @@ public:
 
 	CommandLine(int argc, char const *const *argv);
 
-	bool is_valid();
+	bool is_valid() const;
 
 	bool has_switch(std::string const &name) const;
 

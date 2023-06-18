@@ -10,7 +10,7 @@ CommandLine::CommandLine(int argc, char const *const *argv)
 	parse();
 }
 
-bool CommandLine::is_valid()
+bool CommandLine::is_valid() const
 {
 	return _valid_syntax;
 }
