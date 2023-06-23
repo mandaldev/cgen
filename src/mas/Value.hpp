@@ -30,14 +30,23 @@
 /// key: string | key_chars
 /// key_chars: key_char+
 /// values: value+
-/// escaped_bytes: (escaped_quote | escaped_backslash | ~(quote | escape))*
+/// escaped_bytes: (escaped_char | ~(quote | escape))*
 /// quote: '"'
 /// escape: '\'
-/// escaped_quote: '\"'
-/// escaped_backslash: '\\'
+/// escaped_char:
+/// 	": '\"'
+/// 	\: '\\'
+/// 	bell (0x07): '\a'
+/// 	backspace (0x08): '\b'
+/// 	new page (0x0c): '\f'
+/// 	lf (0x0a): '\n'
+/// 	cr (0x0d): '\r'
+/// 	tab (0x09): '\t'
+/// 	vtab (0x0b): '\v',
+/// 	others will be retained
 ///
 /// ws: white_space*
-/// key_char: a-zA-Z0-9!@#$%^&*()_-=+|~;,<>/?
+/// key_char: ascii chars range : from '!' to '~' (33 ~ 126),  except: "{", "}", "[", "]", and quote '"'
 namespace Mas {
 
 class Value;

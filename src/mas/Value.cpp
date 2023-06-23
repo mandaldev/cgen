@@ -4,18 +4,32 @@
 
 namespace Mas {
 
+static inline bool is_key_char(char c)
+{
+	if (c >= 33 // '!'
+	&& c <= 126 // '~'
+	) {
+		switch (c) {
+		case 123: // '{'
+		case 125: // '}'
+		case 91: // '['
+		case 93: // ']'
+		case 34: // '"'
+		return false;
+		}
+		return true;
+	}
+	return false;
+}
+
+static inline bool is_not_key_char(char c)
+{
+	return !is_key_char(c);
+}
+
 static bool is_key_need_quote(String const &key)
 {
-	auto is_key_char = [](char c)
-	{
-		switch (c) {
-		case '\\': case '"':
-			return true;
-		default:
-			return false;
-		}
-	};
-	return std::any_of(key.cbegin(), key.cend(), is_key_char);
+	return std::any_of(key.cbegin(), key.cend(), is_not_key_char);
 }
 
 bool Value::is_map() const
@@ -274,6 +288,15 @@ private:
 					return;
 				}
 				c = _source[_pos++];
+				switch (c) {
+				case 'a': c = 0x7; break;
+				case 'b': c = 0x8; break;
+				case 'f': c = 0xc; break;
+				case 'n': c = 0xa; break;
+				case 'r': c = 0xd; break;
+				case 't': c = 0x9; break;
+				case 'v': c = 0xb; break;
+				}
 			} else if (c == '"') {
 				break;
 			}
@@ -283,31 +306,7 @@ private:
 
 	void forward_unquoted(TokenType &type, String &token)
 	{
-		auto pred = [](auto c)
-		{
-			// chars need no quoting
-			switch (c) {
-			case 'a' ... 'z':
-			case 'A' ... 'Z':
-			case '0' ... '9':
-			case '!': case '@':
-			case '#': case '$':
-			case '%': case '^':
-			case '&': case '*':
-			case '(': case ')':
-			case '_': case '-':
-			case '=': case '+':
-			case '|':
-			case '~': case ';':
-			case ',':
-			case '<': case '>':
-			case '/': case '?':
-				return true;
-			default:
-				return false;
-			}
-		};
-		auto unquoted_end = std::find_if_not(_source.begin() + _pos, _source.end(), pred);
+		auto unquoted_end = std::find_if_not(_source.begin() + _pos, _source.end(), is_key_char);
 		token = String(_source.begin() + _pos, unquoted_end);
 		_pos = unquoted_end - _source.begin();
 		if (token.empty()) {
