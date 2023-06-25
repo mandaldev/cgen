@@ -206,7 +206,7 @@ bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &
 	return true;
 }
 
-bool Target::gen(std::optional<Cdb> &opt_cdb) const
+bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 {
 	switch (_type) {
 	case TargetType::Executable:
@@ -254,7 +254,7 @@ bool Target::gen(std::optional<Cdb> &opt_cdb) const
 		opt_cdb.value().push_back(item);
 	}
 	return gen_ninja_target_build(
-		"debug",
+		profile,
 		cc,
 		_type,
 		_name,

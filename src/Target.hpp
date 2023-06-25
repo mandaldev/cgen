@@ -86,7 +86,7 @@ public:
 	bool resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
 
 	/// generate build scripts
-	bool gen(std::optional<Cdb> &opt_cdb) const;
+	bool gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
 
 	/// apply templates
 	bool apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates);

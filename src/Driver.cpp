@@ -274,16 +274,21 @@ bool Driver::build()
 	if (_cmdline.has_switch("cdb")) {
 		opt_cdb = Cdb();
 	}
-	if (!_project.configure(opt_cdb)) {
+	std::string profile = _cmdline.get_switch("profile").value_or("debug");
+	if (!_project.get_profile(profile).has_value()) {
+		std::cerr << "Error: no such profile: " << profile << "\n";
+		return false;
+	}
+	if (!_project.configure(profile, opt_cdb)) {
 		std::cerr << "Failed to configure project\n";
 		return false;
 	}
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return _project.build_all_targets();
+		return _project.build_all_targets(profile);
 	}
 	for (auto const &name : targets_name) {
-		if (!_project.build_target(name)) {
+		if (!_project.build_target(profile, name)) {
 			std::cerr << "Aborting...\n";
 			return false;
 		}
@@ -297,12 +302,17 @@ bool Driver::install()
 		return false;
 	}
 	std::filesystem::path prefix = _cmdline.get_switch("prefix").value_or("/usr/local");
+	std::string profile = _cmdline.get_switch("profile").value_or("debug");
+	if (!_project.get_profile(profile).has_value()) {
+		std::cerr << "Error: no such profile: " << profile << "\n";
+		return false;
+	}
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return _project.install_all_targets(prefix);
+		return _project.install_all_targets(profile, prefix);
 	}
 	for (auto const &name : targets_name) {
-		if (!_project.install_target(prefix, name)) {
+		if (!_project.install_target(profile, prefix, name)) {
 			std::cerr << "Aborting...\n";
 			return false;
 		}

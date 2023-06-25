@@ -12,6 +12,9 @@ static const auto EMAIL = "email";
 static const auto LICENSE = "license";
 static const auto DESC = "desc";
 static const auto TARGET = "target";
+static const auto PROFILE = "profile";
+static const auto PROFILE_CFLAGS = "cflags";
+static const auto PROFILE_LFLAGS = "lflags";
 
 static bool load_target(
 	Project *project,
@@ -46,6 +49,15 @@ std::map<std::string, std::shared_ptr<Target>> const &Project::targets() const
 	return _targets;
 }
 
+std::optional<Profile> Project::get_profile(std::string const &name) const
+{
+	auto it = _profiles.find(name);
+	if (it != _profiles.end()) {
+		return it->second;
+	}
+	return std::optional<Profile>();
+}
+
 Pkgconf *Project::pkgconf()
 {
 	return &_pkgconf;
@@ -58,6 +70,15 @@ bool Project::load(Mas::Map const &project_mas)
 	Mas::get_string(project_mas, EMAIL, _email);
 	Mas::get_string(project_mas, LICENSE, _license);
 	Mas::get_string(project_mas, DESC, _desc);
+
+	setup_default_profiles();
+	if (auto it = project_mas.find(PROFILE); it != project_mas.end()) {
+		if (it->second.is_map()) {
+			if (!load_profiles(it->second.map_or({}))) {
+				return false;
+			}
+		}
+	}
 
 	auto it = project_mas.find(TARGET);
 	if (it != project_mas.end()) {
@@ -92,44 +113,44 @@ bool Project::load(Mas::Map const &project_mas)
 	return true;
 }
 
-bool Project::build_all_targets()
+bool Project::build_all_targets(std::string const &profile)
 {
-	return 0 == std::system("ninja -C ./build/debug");
+	return 0 == std::system(("ninja -C ./build/" + profile).c_str());
 }
 
-bool Project::build_target(std::string const &target_name)
+bool Project::build_target(std::string const &profile, std::string const &target_name)
 {
 	auto it = _targets.find(target_name);
 	if (it != _targets.end()) {
-		return 0 == std::system(("ninja -C ./build/debug " + target_name).c_str());
+		return 0 == std::system(("ninja -C ./build/" + profile + ' ' + target_name).c_str());
 	}
 	return false;
 }
 
-bool Project::install_all_targets(std::filesystem::path const &prefix)
+bool Project::install_all_targets(std::string const &profile, std::filesystem::path const &prefix)
 {
-	if (!build_all_targets()) {
+	if (!build_all_targets(profile)) {
 		return false;
 	}
 	for (auto &t : _targets) {
-		if (!t.second->install(prefix, "debug")) {
+		if (!t.second->install(prefix, profile)) {
 			return false;
 		}
 	}
 	return true;
 }
 
-bool Project::install_target(std::filesystem::path const &prefix, std::string const &target_name)
+bool Project::install_target(std::string const &profile, std::filesystem::path const &prefix, std::string const &target_name)
 {
-	if (!build_target(target_name)) {
+	if (!build_target(profile, target_name)) {
 		return false;
 	}
-	return _targets[target_name]->install(prefix, "debug");
+	return _targets[target_name]->install(prefix, profile);
 }
 
-bool Project::configure(std::optional<Cdb> &opt_cdb) const
+bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 {
-	auto ninja_build = "./build/debug/"s + NINJA_BUILD;
+	auto ninja_build = "./build/" + profile + '/' + NINJA_BUILD;
 	std::error_code ec;
 	std::filesystem::create_directories(std::filesystem::path(ninja_build).parent_path(), ec);
 	if (ec) {
@@ -139,12 +160,12 @@ bool Project::configure(std::optional<Cdb> &opt_cdb) const
 	auto in = std::filesystem::last_write_time(PROJECT_MAS, ec);
 	auto out = std::filesystem::last_write_time(ninja_build, ec);
 	if (ec || in > out) {
-		return gen(opt_cdb);
+		return gen(profile, opt_cdb);
 	}
 	return true;
 }
 
-bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const
+bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const
 {
 	if (generated.count(target->name())) { // loop dep?
 		return true;
@@ -159,11 +180,32 @@ bool Project::gen_with_dep(std::shared_ptr<Target> target, std::set<std::string>
 			std::cerr << "Error: no target named " << d << " found\n";
 			return false;
 		}
-		if (!gen_with_dep(it->second, generated, opt_cdb)) {
+		if (!gen_with_dep(profile, it->second, generated, opt_cdb)) {
 			return false;
 		}
 	}
-	return target->gen(opt_cdb);
+	return target->gen(profile, opt_cdb);
+}
+
+bool Project::load_profiles(Mas::Map const &mas)
+{
+	for (auto &p : mas) {
+		if (!p.second.is_map()) {
+			std::cerr << "Error: profile must be a map\n";
+			return false;
+		}
+		auto &profile = _profiles[p.first];
+		auto profile_map = p.second.map_or({});
+		Mas::get_string(profile_map, PROFILE_CFLAGS, profile.cflags);
+		Mas::get_string(profile_map, PROFILE_LFLAGS, profile.lflags);
+	}
+	return true;
+}
+
+void Project::setup_default_profiles()
+{
+	_profiles["debug"] = { "-Wall -g -DDEBUG", "", };
+	_profiles["release"] = { "-Wall -O2 -DNDEBUG", "", };
 }
 
 std::string const &Project::name() const
@@ -191,8 +233,14 @@ std::string const &Project::desc() const
 	return _desc;
 }
 
-bool Project::gen(std::optional<Cdb> &opt_cdb) const
+bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) const
 {
+	auto opt_profile = get_profile(profile_name);
+	if (!opt_profile.has_value()) {
+		std::cerr << "Error: no such profile: " << profile_name << "\n";
+		return false;
+	}
+	auto &profile = opt_profile.value();
 	std::set<std::string> generated;
 	for (auto &&[name, target] : _targets) {
 		if (!target->resolve_deps(_targets)) {
@@ -200,20 +248,22 @@ bool Project::gen(std::optional<Cdb> &opt_cdb) const
 		}
 	}
 	for (auto &&[name, target] : _targets) {
-		if (!gen_with_dep(target, generated, opt_cdb)) { // generate each target first
+		if (!gen_with_dep(profile_name, target, generated, opt_cdb)) { // generate each target first
 			return false;
 		}
 	}
 	if (opt_cdb) {
 		for (auto &item : opt_cdb.value()) {
-			// global cfalgs
-			item.flags = "-Wall -g " + item.flags;
+			// add profile (global) cflags
+			if (profile.cflags.size()) {
+				item.flags = profile.cflags + ' ' + item.flags;
+			}
 		}
 	}
-	auto script = gen_ninja_build("-Wall -g", generated);
+	auto script = gen_ninja_build(profile.cflags, generated);
 
 	std::ofstream fs;
-	std::string fname = "./build/debug/"s + NINJA_BUILD;
+	std::string fname = "./build/" + profile_name + '/' + NINJA_BUILD;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
 		std::cerr << "Failed to open file " << fname << "\n";
@@ -224,7 +274,7 @@ bool Project::gen(std::optional<Cdb> &opt_cdb) const
 	std::cerr << fname << " written\n";
 
 	if (opt_cdb) {
-		return gen_cdb_file(opt_cdb.value(), "build/debug");
+		return gen_cdb_file(opt_cdb.value(), "build/" + profile_name);
 	}
 	return true;
 }

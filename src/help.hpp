@@ -31,6 +31,7 @@ cgen build [target]... [OPTION]...
 
 options:
   -cdb    generate compilation database file: compile_commands.json
+  --profile=<PROFILE>      build profile to use, default is debug
 )";
 
 static const auto HELP_INSTALL = R"(cgen install - install targets

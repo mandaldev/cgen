@@ -16,10 +16,16 @@ class Project
 
 	Pkgconf _pkgconf;
 
-	bool gen(std::optional<Cdb> &opt_cdb) const;
+	std::map<std::string, Profile> _profiles;
+
+	bool gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
 
 	// generate target's dep first and then itself
-	bool gen_with_dep(std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const;
+	bool gen_with_dep(std::string const &profile, std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const;
+
+	bool load_profiles(Mas::Map const &mas);
+
+	void setup_default_profiles();
 
 public:
 	Project() = default;
@@ -38,25 +44,27 @@ public:
 
 	std::map<std::string, std::shared_ptr<Target>> const &targets() const;
 
+	std::optional<Profile> get_profile(std::string const &name) const;
+
 	Pkgconf *pkgconf();
 
 	/// load project from a Mas::Map value
 	bool load(Mas::Map const &project_mas);
 
 	/// generate build scripts
-	bool configure(std::optional<Cdb> &opt_cdb) const;
+	bool configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
 
 	/// build all targets in this project
-	bool build_all_targets();
+	bool build_all_targets(std::string const &profile);
 
 	/// build a specific target and its deps
-	bool build_target(std::string const &target_name);
+	bool build_target(std::string const &profile, std::string const &target_name);
 
 	/// install all targets in this project
-	bool install_all_targets(std::filesystem::path const &prefix);
+	bool install_all_targets(std::string const &profile, std::filesystem::path const &prefix);
 
 	/// install a specific target
-	bool install_target(std::filesystem::path const &prefix, std::string const &target_name);
+	bool install_target(std::string const &profile, std::filesystem::path const &prefix, std::string const &target_name);
 }; // class Project
 
 #endif

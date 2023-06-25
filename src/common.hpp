@@ -17,6 +17,12 @@ enum class TargetType {
 	DynamicLibrary,
 }; // enum class Type
 
+struct Profile
+{
+	std::string cflags;
+	std::string lflags;
+};
+
 static std::string const PROJECT_MAS = "project.mas";
 
 static const auto LICENSES_FOLDER = "licenses";
