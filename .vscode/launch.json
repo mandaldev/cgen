@@ -65,7 +65,8 @@
       "program": "${workspaceFolder}/build/debug/cgen",
       "args": [
         "build",
-        "-cdb"
+        "-cdb",
+        "--profile=debug"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/demos/pkgconf",

@@ -4,6 +4,12 @@
   desc "cgen demo project: hello world"
   license "GPLv3"
 
+  profile {
+    debug_release {
+      cflags "-Wall -g -O2 -DNDEBUG"
+    }
+  }
+
   target [
     {
       name "hw"
