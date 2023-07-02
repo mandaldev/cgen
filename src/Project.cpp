@@ -122,7 +122,7 @@ bool Project::build_target(std::string const &profile, std::string const &target
 {
 	auto it = _targets.find(target_name);
 	if (it != _targets.end()) {
-		return 0 == std::system(("ninja -C ./build/" + profile + ' ' + target_name).c_str());
+		return 0 == std::system(("ninja -C ./build/" + profile + ' ' + target_file_name(target_name, it->second->type())).c_str());
 	}
 	return false;
 }
