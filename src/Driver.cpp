@@ -1,6 +1,7 @@
 #include "Driver.hpp"
 #include "help.hpp"
-#include "xo/exec.hpp"
+#include <Com/Xo/exec.hpp>
+#include <Com/Date.hpp>
 #include <sstream>
 
 static std::string to_valid_fence_string(std::string const &str)
@@ -50,13 +51,13 @@ static std::optional<std::string> load_file(std::filesystem::path const &p)
 	return ifs.read(buf.data(), buf.size()) ? buf : ""s;
 }
 
-// load project.mas as Mas::Value
-static std::optional<Mas::Value> load_project_mas()
+// load project.mas as Com::Mas::Value
+static std::optional<Com::Mas::Value> load_project_mas()
 {
 	auto buf = load_file(PROJECT_MAS);
 	if (buf) {
 		if (buf.value().size()) {
-			return Mas::decode(buf.value());
+			return Com::Mas::decode(buf.value());
 		} else {
 			std::cerr << "Error: file " << PROJECT_MAS << " is empty\n";
 			return {};
@@ -67,7 +68,7 @@ static std::optional<Mas::Value> load_project_mas()
 	}
 }
 
-static std::string files_option_author(XO::CommandLine const &cmdline, std::string def)
+static std::string files_option_author(Com::CommandLine const &cmdline, std::string def)
 {
 	def = cmdline.get_switch("author").value_or(def);
 	if (def.empty()) {
@@ -76,12 +77,12 @@ static std::string files_option_author(XO::CommandLine const &cmdline, std::stri
 	return def;
 }
 
-static std::string files_option_license(XO::CommandLine const &cmdline, std::string def)
+static std::string files_option_license(Com::CommandLine const &cmdline, std::string def)
 {
 	return cmdline.get_switch("license").value_or(def.empty() ? "GPLv3" : def);
 }
 
-static std::string files_option_desc(XO::CommandLine const &cmdline, std::string def)
+static std::string files_option_desc(Com::CommandLine const &cmdline, std::string def)
 {
 	def = cmdline.get_switch("desc").value_or(def);
 	if (def.empty()) {
@@ -90,7 +91,7 @@ static std::string files_option_desc(XO::CommandLine const &cmdline, std::string
 	return def;
 }
 
-static std::filesystem::path files_option_dir(XO::CommandLine const &cmdline, std::filesystem::path const &cwd)
+static std::filesystem::path files_option_dir(Com::CommandLine const &cmdline, std::filesystem::path const &cwd)
 {
 	auto dir = cmdline.get_switch("dir").value_or(".");
 	auto h_dir = std::filesystem::path(dir.empty() ? "." : dir);
@@ -107,7 +108,7 @@ static std::string files_comment(std::string const &author, std::string const &d
 {
 	std::ostringstream oss;
 	oss << "// " << desc << "\n";
-	oss << "// Copyright (C) " << Date::Now::year() << "  " << author << '\n';
+	oss << "// Copyright (C) " << Com::Date::Now::year() << "  " << author << '\n';
 	if (license_header.size()) {
 		oss << "//\n";
 		oss << license_header;
@@ -513,7 +514,7 @@ void Driver::setup_data_dirs()
 		_data_dirs.push_back(home / ".cgen");
 		_data_dirs.push_back(home / ".local/share/cgen");
 	}
-	auto p = XO::exec_install_prefix();
+	auto p = Com::exec_install_prefix();
 	if (!p.empty()) {
 		_data_dirs.push_back(p / "share/cgen");
 	}

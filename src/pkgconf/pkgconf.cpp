@@ -1,5 +1,6 @@
 #include "pkgconf.hpp"
 #include "../common.hpp"
+#include <Com/string.hpp>
 #include <iostream>
 #include <cassert>
 #include <functional>
@@ -112,9 +113,9 @@ bool Pkgconf::find(std::string const &pkg_name)
 	}
 
 	PkgInfo info;
-	info.cflags = join_strings(cast_string_fragment_list(pkg->cflags), " ");
-	info.libs = join_strings(cast_string_fragment_list(pkg->libs), " ");
-	info.libs_private = join_strings(cast_string_fragment_list(pkg->libs_private), " ");
+	info.cflags = Com::join(" ", cast_string_fragment_list(pkg->cflags));
+	info.libs = Com::join(" ", cast_string_fragment_list(pkg->libs));
+	info.libs_private = Com::join(" ", cast_string_fragment_list(pkg->libs_private));
 	info.required = cast_dependency_fragment_list(pkg->required);
 	info.required_private = cast_dependency_fragment_list(pkg->requires_private);
 	_pkgs.insert({pkg_name, info});
@@ -148,19 +149,19 @@ std::string Pkgconf::flags_no_recursively(RecursiveStack &stack, std::string con
 
 	std::string ret;
 	if (stack.cflags) {
-		ret = join_two_items(ret, pkg.cflags, " ");
+		ret = Com::join(" ", ret, pkg.cflags);
 	}
 	if (stack.lflags) {
-		ret = join_two_items(ret, pkg.libs, " ");
+		ret = Com::join(" ", ret, pkg.libs);
 	}
 	if (stack.required) {
 		for (auto &dep : pkg.required) {
-			ret = join_two_items(ret, flags_no_recursively(stack, dep), " ");
+			ret = Com::join(" ", ret, flags_no_recursively(stack, dep));
 		}
 	}
 	if (stack.required_private) {
 		for (auto &dep : pkg.required_private) {
-			ret = join_two_items(ret, flags_no_recursively(stack, dep), " ");
+			ret = Com::join(" ", ret, flags_no_recursively(stack, dep));
 		}
 	}
 	return ret;

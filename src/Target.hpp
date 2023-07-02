@@ -1,6 +1,6 @@
 #ifndef MAS_SRC_TARGET_HPP
 #define MAS_SRC_TARGET_HPP
-#include "mas/Value.hpp"
+#include <Com/Mas/Value.hpp>
 #include "common.hpp"
 #include "Cdb.hpp"
 #include <set>
@@ -48,9 +48,9 @@ class Target
 
 	bool _deps_resolved = false; // mark, dont resolve again
 
-	bool load_pkgconfs(Mas::Map const &target_mas);
+	bool load_pkgconfs(Com::Mas::Map const &target_mas);
 
-	bool load_installs(Mas::Map const &target_mas);
+	bool load_installs(Com::Mas::Map const &target_mas);
 
 	bool apply_override(
 		std::map<std::string, std::shared_ptr<Target>> const &all_templates,
@@ -68,7 +68,7 @@ public:
 	Target &operator=(Target const &) = delete;
 
 	/// load target data from mas
-	bool load(std::string const &name, Mas::Map const &target_mas);
+	bool load(std::string const &name, Com::Mas::Map const &target_mas);
 
 	std::string name() const;
 

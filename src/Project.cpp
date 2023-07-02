@@ -19,7 +19,7 @@ static const auto PROFILE_LFLAGS = "lflags";
 static bool load_target(
 	Project *project,
 	std::string const &target_name,
-	Mas::Map const &m,
+	Com::Mas::Map const &m,
 	std::map<std::string, std::shared_ptr<Target>> &targets,
 	std::map<std::string, std::shared_ptr<Target>> &templates
 )
@@ -63,13 +63,13 @@ Pkgconf *Project::pkgconf()
 	return &_pkgconf;
 }
 
-bool Project::load(Mas::Map const &project_mas)
+bool Project::load(Com::Mas::Map const &project_mas)
 {
-	Mas::get_string(project_mas, NAME, _name);
-	Mas::get_string(project_mas, AUTHOR, _author);
-	Mas::get_string(project_mas, EMAIL, _email);
-	Mas::get_string(project_mas, LICENSE, _license);
-	Mas::get_string(project_mas, DESC, _desc);
+	Com::Mas::get_string(project_mas, NAME, _name);
+	Com::Mas::get_string(project_mas, AUTHOR, _author);
+	Com::Mas::get_string(project_mas, EMAIL, _email);
+	Com::Mas::get_string(project_mas, LICENSE, _license);
+	Com::Mas::get_string(project_mas, DESC, _desc);
 
 	setup_default_profiles();
 	if (auto it = project_mas.find(PROFILE); it != project_mas.end()) {
@@ -187,7 +187,7 @@ bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> t
 	return target->gen(profile, opt_cdb);
 }
 
-bool Project::load_profiles(Mas::Map const &mas)
+bool Project::load_profiles(Com::Mas::Map const &mas)
 {
 	for (auto &p : mas) {
 		if (!p.second.is_map()) {
@@ -196,8 +196,8 @@ bool Project::load_profiles(Mas::Map const &mas)
 		}
 		auto &profile = _profiles[p.first];
 		auto profile_map = p.second.map_or({});
-		Mas::get_string(profile_map, PROFILE_CFLAGS, profile.cflags);
-		Mas::get_string(profile_map, PROFILE_LFLAGS, profile.lflags);
+		Com::Mas::get_string(profile_map, PROFILE_CFLAGS, profile.cflags);
+		Com::Mas::get_string(profile_map, PROFILE_LFLAGS, profile.lflags);
 	}
 	return true;
 }

@@ -2,6 +2,7 @@
 #include "common.hpp"
 #include "ninja.hpp"
 #include "Project.hpp"
+#include <Com/string.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -26,7 +27,7 @@ static const auto INSTALL = "install";
 static const auto INSTALL_DIR = "dir";
 static const auto INSTALL_FILES = "files";
 
-static std::optional<std::string> load_string_set(Mas::Value const &mas, std::set<std::string> &set)
+static std::optional<std::string> load_string_set(Com::Mas::Value const &mas, std::set<std::string> &set)
 {
 	if (!mas.is_array()) {
 		return "Not an array value";
@@ -52,7 +53,7 @@ Target::Target(Project *project)
 {
 }
 
-bool Target::load_pkgconfs(Mas::Map const &target_mas)
+bool Target::load_pkgconfs(Com::Mas::Map const &target_mas)
 {
 	auto it = target_mas.find(PKGCONF);
 	if (it == target_mas.end()) {
@@ -77,7 +78,7 @@ bool Target::load_pkgconfs(Mas::Map const &target_mas)
 	return true;
 }
 
-bool Target::load_installs(Mas::Map const &target_mas)
+bool Target::load_installs(Com::Mas::Map const &target_mas)
 {
 	auto it = target_mas.find(INSTALL);
 	if (it == target_mas.end()) {
@@ -110,20 +111,20 @@ bool Target::load_installs(Mas::Map const &target_mas)
 	return true;
 }
 
-bool Target::load(std::string const &name, Mas::Map const &target_mas)
+bool Target::load(std::string const &name, Com::Mas::Map const &target_mas)
 {
 	std::string lang, type;
 	if (name.size()) {
 		_name = name;
 	} else {
-		Mas::get_string(target_mas, NAME, _name);
+		Com::Mas::get_string(target_mas, NAME, _name);
 	}
-	Mas::get_string(target_mas, LANG, lang);
-	Mas::get_string(target_mas, STD, _std);
-	Mas::get_string(target_mas, TYPE, type);
-	Mas::get_string(target_mas, EXTRA_CFLAGS, _extra_cflags);
-	Mas::get_string(target_mas, EXTRA_LFLAGS, _extra_lflags);
-	Mas::get_string(target_mas, TEMPLATE, _template);
+	Com::Mas::get_string(target_mas, LANG, lang);
+	Com::Mas::get_string(target_mas, STD, _std);
+	Com::Mas::get_string(target_mas, TYPE, type);
+	Com::Mas::get_string(target_mas, EXTRA_CFLAGS, _extra_cflags);
+	Com::Mas::get_string(target_mas, EXTRA_LFLAGS, _extra_lflags);
+	Com::Mas::get_string(target_mas, TEMPLATE, _template);
 	if (type == "exe") {
 		_type = TargetType::Executable;
 	} else if (type == "slib") {
@@ -244,8 +245,8 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 			lflags.push_back(it->second->external_lflags());
 		}
 	}
-	auto cflag = join_strings(cflags, " ");
-	auto lflag = join_strings(lflags, " ");
+	auto cflag = Com::join(" ", cflags);
+	auto lflag = Com::join(" ", lflags);
 	if (opt_cdb) {
 		CdbItem item;
 		item.cmd = cc;
@@ -260,19 +261,19 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 		_name,
 		_src,
 		deps,
-		join_strings(cflags, " "),
-		join_strings(lflags, " ")
+		Com::join(" ", cflags),
+		Com::join(" ", lflags)
 	);
 }
 
 std::string Target::external_cflags() const
 {
-	return trim_string(_pkg_cflags + " " + _extra_cflags);
+	return std::string(Com::trim(_pkg_cflags + " " + _extra_cflags));
 }
 
 std::string Target::external_lflags() const
 {
-	return trim_string(_pkg_lflags + " " + _extra_lflags);
+	return std::string(Com::trim(_pkg_lflags + " " + _extra_lflags));
 }
 
 bool Target::apply_override(

@@ -20,13 +20,10 @@
         "src/Cdb.cpp"
       ]
 
-      dep [
-        "mas"
-        "xo"
-      ]
       pkgconf [
         "libpkgconf"
       ]
+      extra_lflags "-lCom"
 
       install [
         {
@@ -36,46 +33,6 @@
             "share/cgen/licenses/GPLv3.header"
             "share/cgen/licenses/LGPLv3"
             "share/cgen/licenses/LGPLv3.header"
-          ]
-        }
-      ]
-    }
-
-    mas {
-      language "c++"
-      std "c++17"
-      type "slib"
-
-      src [
-        "src/mas/Value.cpp"
-      ]
-
-      install [
-        {
-          dir "include/mas"
-          files [
-            "src/mas/Value.hpp"
-          ]
-        }
-      ]
-    }
-
-    xo {
-      language "c++"
-      std "c++17"
-      type "slib"
-
-      src [
-        "src/xo/CommandLine.cpp"
-        "src/xo/exec.cpp"
-      ]
-
-      install [
-        {
-          dir "include/xo"
-          files [
-            "src/xo/CommandLine.hpp"
-            "src/xo/exec.hpp"
           ]
         }
       ]

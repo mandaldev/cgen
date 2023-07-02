@@ -1,5 +1,6 @@
 #include "ninja.hpp"
 #include "common.hpp"
+#include <Com/string.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -92,8 +93,8 @@ bool gen_ninja_target_build(
 	lflags.push_back(extra_lflags);
 
 	std::string script;
-	script += join_two_items("cflags = $"s + NINJA_GLOBAL_CFLAGS, join_strings(cflags, " "), " ") + "\n";
-	script += join_two_items("lflags = $"s + NINJA_GLOBAL_LFLAGS, join_strings(lflags, " "), " ") + "\n";
+	script += Com::join(" ", "cflags = $"s + NINJA_GLOBAL_CFLAGS, Com::join(" ", cflags)) + "\n";
+	script += Com::join(" ", "lflags = $"s + NINJA_GLOBAL_LFLAGS, Com::join(" ", lflags)) + "\n";
 	script += "CC = " + cc + "\n";
 	script += "\n";
 

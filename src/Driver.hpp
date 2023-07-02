@@ -6,8 +6,8 @@
 #include <fstream>
 #include <iterator>
 #include <functional>
-#include "mas/Value.hpp"
-#include "xo/CommandLine.hpp"
+#include <Com/Mas/Value.hpp>
+#include <Com/Xo/CommandLine.hpp>
 #include "Project.hpp"
 
 /// Command driver
@@ -15,7 +15,7 @@ class Driver
 {
 	int _argc = 0;
 	char const *const *_argv = nullptr;
-	XO::CommandLine _cmdline;
+	Com::CommandLine _cmdline;
 	std::map<std::string, std::function<bool()>> _cmd;
 
 	bool _has_project = false;

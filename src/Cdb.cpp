@@ -1,5 +1,6 @@
 #include "Cdb.hpp"
 #include "common.hpp"
+#include <Com/string.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -48,7 +49,7 @@ bool gen_cdb_file(Cdb const &cdb, std::string const &dir)
 	auto first_cc = true;
 	auto abs_dir = std::filesystem::absolute(dir).string();
 	for (auto &item : cdb) {
-		auto args = split_string(item.flags, " ");
+		auto args = Com::split(item.flags, " ");
 		for (auto &s : item.files) {
 			CompileCommand cc;
 			cc.file = "../../" + s;

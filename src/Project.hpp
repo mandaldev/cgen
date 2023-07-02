@@ -23,7 +23,7 @@ class Project
 	// generate target's dep first and then itself
 	bool gen_with_dep(std::string const &profile, std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const;
 
-	bool load_profiles(Mas::Map const &mas);
+	bool load_profiles(Com::Mas::Map const &mas);
 
 	void setup_default_profiles();
 
@@ -49,7 +49,7 @@ public:
 	Pkgconf *pkgconf();
 
 	/// load project from a Mas::Map value
-	bool load(Mas::Map const &project_mas);
+	bool load(Com::Mas::Map const &project_mas);
 
 	/// generate build scripts
 	bool configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
