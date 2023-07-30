@@ -318,8 +318,8 @@ bool Driver::gen_project(std::string const &name)
 		return false;
 	}
 	auto std = _cmdline.get_switch("std").value_or("c++17");
-	auto type = _cmdline.get_switch("type").value_or("bin");
-	if (type != "bin" && type != "slib" && type != "dlib") {
+	auto type = _cmdline.get_switch("type").value_or("exe");
+	if (type != "exe" && type != "slib" && type != "dlib") {
 		std::cerr << "Error: wrong 'target' type, only 'bin', 'slib' or 'dlib' supported!\n";
 		return false;
 	}
@@ -331,7 +331,7 @@ bool Driver::gen_project(std::string const &name)
 		std::string code;
 	};
 	std::vector<Files> files;
-	if (type == "bin") {
+	if (type == "exe") {
 		files.push_back(Files{"main", lang == "c" ? "c" : "cpp", false, MAIN_CODE});
 	} else if (type == "slib" || type == "dlib") {
 		files.push_back(Files{name, lang == "c" ? "c" : "cpp", true, LIB_DECL_CODE});
