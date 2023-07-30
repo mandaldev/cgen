@@ -48,7 +48,7 @@ bool gen_ninja_target_build(
 	std::string const &cc,
 	TargetType type,
 	std::string const &name,
-	std::set<std::string> const &src,
+	std::set<std::filesystem::path> const &src,
 	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
 	std::string const &extra_cflags,
 	std::string const &extra_lflags
@@ -99,8 +99,7 @@ bool gen_ninja_target_build(
 	script += "\n";
 
 	std::string obj_list;
-	for (auto const &s : src) {
-		std::filesystem::path p{s};
+	for (auto const &p : src) {
 		if (p.has_parent_path()) { // make sure directories exist
 			std::error_code ec;
 			std::filesystem::create_directories(p.parent_path(), ec);
@@ -108,6 +107,7 @@ bool gen_ninja_target_build(
 				// error
 			}
 		}
+		auto s = p.string();
 		script += "build " + s + ".o: " + NINJA_RULE_COMPILE + " ../../" + s + "\n";
 		obj_list += s + ".o ";
 	}

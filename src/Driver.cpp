@@ -1,6 +1,7 @@
 #include "Driver.hpp"
 #include "help.hpp"
 #include <Com/Xo/exec.hpp>
+#include <Com/file.hpp>
 #include <Com/Date.hpp>
 #include <sstream>
 
@@ -37,35 +38,6 @@ static std::pair<bool, std::filesystem::path> chroot()
 	std::filesystem::current_path(cur); // chroot
 	std::cerr << "chroot to " << cur << "\n";
 	return {true, old_cwd};
-}
-
-static std::optional<std::string> load_file(std::filesystem::path const &p)
-{
-	std::error_code ec {};
-	auto size = std::filesystem::file_size(p, ec);
-	if (ec || size == 0) {
-		return {};
-	}
-	auto buf = std::string(size, 0);
-	auto ifs = std::ifstream(p);
-	return ifs.read(buf.data(), buf.size()) ? buf : ""s;
-}
-
-// load project.mas as Com::Mas::Value
-static std::optional<Com::Mas::Value> load_project_mas()
-{
-	auto buf = load_file(PROJECT_MAS);
-	if (buf) {
-		if (buf.value().size()) {
-			return Com::Mas::decode(buf.value());
-		} else {
-			std::cerr << "Error: file " << PROJECT_MAS << " is empty\n";
-			return {};
-		}
-	} else {
-		std::cerr << "Error: read " << PROJECT_MAS << " failed\n";
-		return {};
-	}
 }
 
 static std::string files_option_author(Com::CommandLine const &cmdline, std::string def)
@@ -231,7 +203,7 @@ bool Driver::load_project()
 	}
 	_old_cwd = res.second;
 
-	auto mas = load_project_mas();
+	auto mas = Com::load_mas_file(PROJECT_MAS);
 	if (!mas.has_value() || !mas.value().is_map()) {
 		std::cerr << "Not a valid cgen project file\n";
 		return false;
@@ -531,7 +503,7 @@ std::string Driver::load_runtime_file(std::filesystem::path const & path)
 		if (!std::filesystem::exists(p, ec) || ec) {
 			continue;
 		}
-		auto buf = load_file(p);
+		auto buf = Com::load_file(p);
 		if (buf) {
 			return buf.value();
 		}

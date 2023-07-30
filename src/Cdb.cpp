@@ -35,10 +35,10 @@ struct CompileCommand
 	}
 };
 
-bool gen_cdb_file(Cdb const &cdb, std::string const &dir)
+bool gen_cdb_file(Cdb const &cdb, std::filesystem::path const &dir)
 {
 	std::ofstream fs;
-	std::string fname = dir + "/compile_commands.json";
+	std::string fname = dir / "compile_commands.json";
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
 		std::cerr << "Failed to open file " << fname << "\n";
@@ -50,15 +50,15 @@ bool gen_cdb_file(Cdb const &cdb, std::string const &dir)
 	auto abs_dir = std::filesystem::absolute(dir).string();
 	for (auto &item : cdb) {
 		auto args = Com::split(item.flags, " ");
-		for (auto &s : item.files) {
+		for (auto s : item.files) {
 			CompileCommand cc;
-			cc.file = "../../" + s;
+			cc.file = "../.." / s;
 			cc.directory = abs_dir;
 			cc.arguments.push_back(item.cmd);
 			cc.arguments.insert(cc.arguments.end(), args.begin(), args.end());
 			cc.arguments.push_back("-c");
 			cc.arguments.push_back("-o");
-			cc.arguments.push_back(s + ".o");
+			cc.arguments.push_back(s += ".o");
 			cc.arguments.push_back(cc.file);
 			if (first_cc) {
 				first_cc = false;

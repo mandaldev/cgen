@@ -3,6 +3,7 @@
 #include "ninja.hpp"
 #include "Project.hpp"
 #include <Com/string.hpp>
+#include <Com/Mas/serialize.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -27,25 +28,19 @@ static const auto INSTALL = "install";
 static const auto INSTALL_DIR = "dir";
 static const auto INSTALL_FILES = "files";
 
-static std::optional<std::string> load_string_set(Com::Mas::Value const &mas, std::set<std::string> &set)
+static bool load_and_fix_paths(Com::Mas::Value &paths_mas, std::set<std::filesystem::path> &paths, std::filesystem::path const &base)
 {
-	if (!mas.is_array()) {
-		return "Not an array value";
+	if (!base.empty()) {
+		std::vector<std::filesystem::path> tmp;
+		if (!Com::Mas::deserialize(paths_mas, tmp)) {
+			return false;
+		}
+		for (auto &p : tmp) {
+			p = base / p;
+		}
+		paths_mas = Com::Mas::serialize(tmp);
 	}
-	for (auto &s : mas.array_or({})) {
-		if (!s.is_string()) {
-			return "Not a string value";
-		}
-		auto &path = s.string_or({});
-		if (path.empty()) {
-			return "Empty string";
-		}
-		if (set.count(path)) {
-			return "Not a unique string: " + path;
-		}
-		set.insert(path);
-	}
-	return {};
+	return Com::Mas::deserialize(paths_mas, paths);
 }
 
 Target::Target(Project *project)
@@ -60,9 +55,8 @@ bool Target::load_pkgconfs(Com::Mas::Map const &target_mas)
 		return true;
 	}
 	std::set<std::string> pkg;
-	auto emsg = load_string_set(it->second, pkg);
-	if (emsg.has_value()) {
-		std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "': " << emsg.value() << "\n";
+	if (!Com::Mas::deserialize(it->second, pkg)) {
+		std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "\n";
 		return false;
 	}
 	_pkg = {pkg.begin(), pkg.end()};
@@ -78,7 +72,7 @@ bool Target::load_pkgconfs(Com::Mas::Map const &target_mas)
 	return true;
 }
 
-bool Target::load_installs(Com::Mas::Map const &target_mas)
+bool Target::load_installs(Com::Mas::Map &target_mas)
 {
 	auto it = target_mas.find(INSTALL);
 	if (it == target_mas.end()) {
@@ -88,21 +82,22 @@ bool Target::load_installs(Com::Mas::Map const &target_mas)
 		std::cerr << "Error: invalid 'install' of target '" << _name << "'\n";
 		return false;
 	}
-	auto &install_mas = it->second.array_or({});
+	auto &install_mas = it->second.as_array();
 	for (auto &item_mas : install_mas) {
 		if (!item_mas.is_map()) {
 			std::cerr << "Error: 'install' list element must be a map!\n";
 			return false;
 		}
 		InstallItem item;
-		auto &item_map = item_mas.map_or({});
+		auto &item_map = item_mas.as_map();
 		auto dir = item_map.find(INSTALL_DIR);
 		if (dir != item_map.end()) {
 			item.dir = dir->second.string_or(item.dir);
 		}
-		auto files = item_map.find(INSTALL_FILES);
-		if (files != item_map.end()) {
-			load_string_set(files->second, item.files);
+		auto files_mas = item_map.find(INSTALL_FILES);
+		if (files_mas != item_map.end()) {
+			if (!load_and_fix_paths(files_mas->second, item.files, _basedir)) {
+			}
 		}
 		if (item.files.size()) {
 			_installItems.push_back(item);
@@ -111,7 +106,7 @@ bool Target::load_installs(Com::Mas::Map const &target_mas)
 	return true;
 }
 
-bool Target::load(std::string const &name, Com::Mas::Map const &target_mas)
+bool Target::load(std::string const &name, Com::Mas::Map &target_mas, std::filesystem::path const &basedir)
 {
 	std::string lang, type;
 	if (name.size()) {
@@ -147,21 +142,20 @@ bool Target::load(std::string const &name, Com::Mas::Map const &target_mas)
 		std::cerr << "Unknown language: " << lang << "\n";
 		return false;
 	}
+	_basedir = basedir;
 
 	auto it = target_mas.find(SRC);
 	if (it != target_mas.end()) {
-		auto emsg = load_string_set(it->second, _src);
-		if (emsg.has_value()) {
-			std::cerr << "Error: invalid 'src' of target '" << _name << "': " << emsg.value() << "\n";
+		if (!load_and_fix_paths(it->second, _src, _basedir)) {
+			std::cerr << "Error: invalid 'src' of target '" << _name << "\n";
 			return false;
 		}
 	}
 	it = target_mas.find(DEP);
 	if (it != target_mas.end()) {
 		std::set<std::string> dep;
-		auto emsg = load_string_set(it->second, dep);
-		if (emsg.has_value()) {
-			std::cerr << "Error: invalid 'dep' of target '" << _name << "': " << emsg.value() << "\n";
+		if (!Com::Mas::deserialize(it->second, dep)) {
+			std::cerr << "Error: invalid 'dep' of target '" << _name << "\n";
 			return false;
 		}
 		_dep = {dep.begin(), dep.end()};

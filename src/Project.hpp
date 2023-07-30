@@ -2,10 +2,13 @@
 #define MAS_SRC_PROJECT_HPP
 #include "Target.hpp"
 #include "pkgconf/pkgconf.hpp"
+#include <set>
 
 /// a cgen project
 class Project
 {
+	std::string _project_cached;
+	Com::Mas::Map _project_mas;
 	std::string _name;
 	std::string _author;
 	std::string _email;
@@ -26,6 +29,14 @@ class Project
 	bool load_profiles(Com::Mas::Map const &mas);
 
 	void setup_default_profiles();
+
+	bool load_target(std::string const &target_name, Com::Mas::Map &m, std::filesystem::path const &basedir = "");
+
+	bool load_target(std::string const &target_name, Com::Mas::Value &m);
+
+	bool load_targets(Com::Mas::Value &target_mas);
+
+	bool load_include(std::string const &target_name, Com::Mas::Value &target_mas);
 
 public:
 	Project() = default;

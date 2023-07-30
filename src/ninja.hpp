@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <filesystem>
 #include "common.hpp"
 
 /// common things about 'build':
@@ -63,7 +64,7 @@ bool gen_ninja_target_build(
 	std::string const &cc,
 	TargetType type,
 	std::string const &name,
-	std::set<std::string> const &src,
+	std::set<std::filesystem::path> const &src,
 	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
 	std::string const &extra_cflags,
 	std::string const &extra_lflags

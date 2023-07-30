@@ -1,6 +1,7 @@
 #include "Project.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
+#include <Com/file.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -15,22 +16,17 @@ static const auto TARGET = "target";
 static const auto PROFILE = "profile";
 static const auto PROFILE_CFLAGS = "cflags";
 static const auto PROFILE_LFLAGS = "lflags";
+static const auto INCLUDE = "include";
 
-static bool load_target(
-	Project *project,
-	std::string const &target_name,
-	Com::Mas::Map const &m,
-	std::map<std::string, std::shared_ptr<Target>> &targets,
-	std::map<std::string, std::shared_ptr<Target>> &templates
-)
+bool Project::load_target(std::string const &target_name, Com::Mas::Map &m, std::filesystem::path const &basedir)
 {
-	auto target = std::make_shared<Target>(project);
-	if (!target->load(target_name, m)) {
+	auto target = std::make_shared<Target>(this);
+	if (!target->load(target_name, m, basedir)) {
 		std::cerr << "Load target failed\n";
 		return false;
 	}
 	auto name = target->name();
-	auto &dst = target->type() == TargetType::Template ? templates : targets;
+	auto &dst = target->type() == TargetType::Template ? _templates : _targets;
 	if (name.length()) {
 		if (!dst.count(name)) {
 			dst.insert({target->name(), target});
@@ -42,6 +38,64 @@ static bool load_target(
 		std::cerr << "Target name must be non-empty string\n";
 	}
 	return false;
+}
+
+bool Project::load_target(std::string const &target_name, Com::Mas::Value &m)
+{
+	if (m.is_string()) {
+		if (m.as_string().empty()) {
+			std::cerr << "member of 'target' must be empty string\n";
+			return false;
+		}
+		return load_include(target_name, m);
+	}
+	if (!m.is_map()) {
+		std::cerr << "member of 'target' must be map or string value\n";
+		return false;
+	}
+	if (!load_target(target_name, m.as_map())) {
+		return false;
+	}
+	return true;
+}
+
+bool Project::load_targets(Com::Mas::Value &targets_mas)
+{
+	if (targets_mas.is_string()) {
+		std::cerr << "Target must be array or map value\n";
+		return false;
+	}
+	if (targets_mas.is_array()) {
+		for (auto &m : targets_mas.as_array()) {
+			if (!load_target("", m)) {
+				return false;
+			}
+		}
+	} else {
+		for (auto &m : targets_mas.as_map()) {
+			if (!load_target(m.first, m.second)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+bool Project::load_include(std::string const &target_name, Com::Mas::Value &target_mas)
+{
+	std::filesystem::path path = target_mas.as_string();
+	auto opt_mas = Com::load_mas_file(path);
+	if (!opt_mas) {
+		std::cerr << "Error: not a valid mas file: " << path << '\n';
+		return false;
+	}
+	auto &mas = opt_mas.value();
+	if (!mas.is_map()) {
+		std::cerr << "Error: must be a map: " << path << '\n';
+		return false;
+	}
+	target_mas = std::move(mas);
+	return load_target(target_name, target_mas.as_map(), path.parent_path());
 }
 
 std::map<std::string, std::shared_ptr<Target>> const &Project::targets() const
@@ -65,14 +119,16 @@ Pkgconf *Project::pkgconf()
 
 bool Project::load(Com::Mas::Map const &project_mas)
 {
-	Com::Mas::get_string(project_mas, NAME, _name);
-	Com::Mas::get_string(project_mas, AUTHOR, _author);
-	Com::Mas::get_string(project_mas, EMAIL, _email);
-	Com::Mas::get_string(project_mas, LICENSE, _license);
-	Com::Mas::get_string(project_mas, DESC, _desc);
+	_project_mas = project_mas;
+	_project_cached = Com::Mas::encode(_project_mas);
+	Com::Mas::get_string(_project_mas, NAME, _name);
+	Com::Mas::get_string(_project_mas, AUTHOR, _author);
+	Com::Mas::get_string(_project_mas, EMAIL, _email);
+	Com::Mas::get_string(_project_mas, LICENSE, _license);
+	Com::Mas::get_string(_project_mas, DESC, _desc);
 
 	setup_default_profiles();
-	if (auto it = project_mas.find(PROFILE); it != project_mas.end()) {
+	if (auto it = _project_mas.find(PROFILE); it != _project_mas.end()) {
 		if (it->second.is_map()) {
 			if (!load_profiles(it->second.map_or({}))) {
 				return false;
@@ -80,29 +136,9 @@ bool Project::load(Com::Mas::Map const &project_mas)
 		}
 	}
 
-	auto it = project_mas.find(TARGET);
-	if (it != project_mas.end()) {
-		if (it->second.is_string()) {
-			std::cerr << "Target must be array or map value\n";
+	if (auto it = _project_mas.find(TARGET); it != _project_mas.end()) {
+		if (!load_targets(it->second)) {
 			return false;
-		}
-		for (auto &m : it->second.array_or({})) {
-			if (!m.is_map()) {
-				std::cerr << "member of 'target' must be map value\n";
-				return false;
-			}
-			if (!load_target(this, {}, m.map_or({}), _targets, _templates)) {
-				return false;
-			}
-		}
-		for (auto &m : it->second.map_or({})) {
-			if (!m.second.is_map()) {
-				std::cerr << "member of 'target' must be map value\n";
-				return false;
-			}
-			if (!load_target(this, m.first, m.second.map_or({}), _targets, _templates)) {
-				return false;
-			}
 		}
 	}
 	for (auto &&[name, target] : _targets) {
@@ -150,19 +186,29 @@ bool Project::install_target(std::string const &profile, std::filesystem::path c
 
 bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 {
-	auto ninja_build = "./build/" + profile + '/' + NINJA_BUILD;
+	auto changed = true;
+	auto build_dir = std::filesystem::path("build") / profile;
+	auto ninja_build_path = build_dir / NINJA_BUILD;
+	auto cache_path = build_dir / "project.cached";
+	if (auto opt_cached_project = Com::load_file(cache_path)) {
+		if (opt_cached_project.value() == _project_cached) {
+			changed = false;
+		}
+	}
+	if (!changed) {
+		return true;
+	}
 	std::error_code ec;
-	std::filesystem::create_directories(std::filesystem::path(ninja_build).parent_path(), ec);
+	std::filesystem::create_directories(ninja_build_path.parent_path(), ec);
 	if (ec) {
 		// error
 		return false;
 	}
-	auto in = std::filesystem::last_write_time(PROJECT_MAS, ec);
-	auto out = std::filesystem::last_write_time(ninja_build, ec);
-	if (ec || in > out) {
-		return gen(profile, opt_cdb);
+	if (gen(profile, opt_cdb)) {
+		Com::save_file(cache_path, _project_cached);
+		return true;
 	}
-	return true;
+	return false;
 }
 
 bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const

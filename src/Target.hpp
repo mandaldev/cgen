@@ -17,7 +17,7 @@ class Target
 	struct InstallItem
 	{
 		std::string dir = ".";
-		std::set<std::string> files;
+		std::set<std::filesystem::path> files;
 	};
 
 	Project *_project = nullptr;
@@ -29,7 +29,9 @@ class Target
 	std::string _std;
 	TargetType _type = TargetType::None;
 
-	std::set<std::string> _src;
+	std::filesystem::path _basedir;
+
+	std::set<std::filesystem::path> _src;
 	std::vector<std::string> _dep; // append indirect deps after `resolve_deps`
 	std::vector<std::string> _pkg; // pkg-conf
 
@@ -50,7 +52,7 @@ class Target
 
 	bool load_pkgconfs(Com::Mas::Map const &target_mas);
 
-	bool load_installs(Com::Mas::Map const &target_mas);
+	bool load_installs(Com::Mas::Map &target_mas);
 
 	bool apply_override(
 		std::map<std::string, std::shared_ptr<Target>> const &all_templates,
@@ -68,7 +70,7 @@ public:
 	Target &operator=(Target const &) = delete;
 
 	/// load target data from mas
-	bool load(std::string const &name, Com::Mas::Map const &target_mas);
+	bool load(std::string const &name, Com::Mas::Map &target_mas, std::filesystem::path const &basedir = "");
 
 	std::string name() const;
 
