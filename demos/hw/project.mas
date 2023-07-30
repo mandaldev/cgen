@@ -10,17 +10,7 @@
     }
   }
 
-  target [
-    {
-      name "hw"
-
-      language "c++"
-      std "c++17"
-
-      type "exe"
-      src [
-        "src/main.cpp"
-      ]
-    }
-  ]
+  target {
+    hw "src/hw.mas"
+  }
 }
