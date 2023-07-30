@@ -457,16 +457,18 @@ bool Driver::gen_files(
 			buf += "#define " + fence + '\n';
 			buf += code;
 			buf += "\n#endif\n";
-		} else if (match_header) {
-			std::string include = "#include \"" + name + ".";
-			if (type == "cpp") {
-				include += "hpp\"\n";
-			} else if (type == "c") {
-				include += "h\"\n";
-			} else {
-				include = "";
+		} else {
+			if (match_header) {
+				std::string include = "#include \"" + name + ".";
+				if (type == "cpp") {
+					include += "hpp\"\n";
+				} else if (type == "c") {
+					include += "h\"\n";
+				} else {
+					include = "";
+				}
+				buf += include;
 			}
-			buf += include;
 			buf += code;
 		}
 		if (!write_file(file_dir / file_name, buf)) {
