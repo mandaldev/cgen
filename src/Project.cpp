@@ -7,21 +7,10 @@
 #include <filesystem>
 #include <cassert>
 
-static const auto NAME = "name";
-static const auto AUTHOR = "author";
-static const auto EMAIL = "email";
-static const auto LICENSE = "license";
-static const auto DESC = "desc";
-static const auto TARGET = "target";
-static const auto PROFILE = "profile";
-static const auto PROFILE_CFLAGS = "cflags";
-static const auto PROFILE_LFLAGS = "lflags";
-static const auto INCLUDE = "include";
-
-bool Project::load_target(std::string const &target_name, Com::Mas::Map &m, std::filesystem::path const &basedir)
+bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir)
 {
 	auto target = std::make_shared<Target>(this);
-	if (!target->load(target_name, m, basedir)) {
+	if (!target->load(target_name, tm, basedir)) {
 		std::cerr << "Load target failed\n";
 		return false;
 	}
@@ -40,62 +29,65 @@ bool Project::load_target(std::string const &target_name, Com::Mas::Map &m, std:
 	return false;
 }
 
-bool Project::load_target(std::string const &target_name, Com::Mas::Value &m)
+bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel &tm, ProjectModel::Target &variant)
 {
-	if (m.is_string()) {
-		if (m.as_string().empty()) {
-			std::cerr << "member of 'target' must be empty string\n";
-			return false;
-		}
-		return load_include(target_name, m);
-	}
-	if (!m.is_map()) {
-		std::cerr << "member of 'target' must be map or string value\n";
-		return false;
-	}
-	if (!load_target(target_name, m.as_map())) {
-		return false;
-	}
-	return true;
+	return load_target(target_name, tm, "");
 }
 
-bool Project::load_targets(Com::Mas::Value &targets_mas)
+bool Project::load_target(std::string const &target_name, std::string const &include, ProjectModel::Target &variant)
 {
-	if (targets_mas.is_string()) {
-		std::cerr << "Target must be array or map value\n";
+	if (include.empty()) {
+		std::cerr << "member of 'target' must be empty string\n";
 		return false;
 	}
-	if (targets_mas.is_array()) {
-		for (auto &m : targets_mas.as_array()) {
-			if (!load_target("", m)) {
-				return false;
-			}
-		}
-	} else {
-		for (auto &m : targets_mas.as_map()) {
-			if (!load_target(m.first, m.second)) {
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-bool Project::load_include(std::string const &target_name, Com::Mas::Value &target_mas)
-{
-	std::filesystem::path path = target_mas.as_string();
+	std::filesystem::path path = include;
 	auto opt_mas = Com::load_mas_file(path);
 	if (!opt_mas) {
 		std::cerr << "Error: not a valid mas file: " << path << '\n';
 		return false;
 	}
+	ProjectModel::TargetModel tm;
 	auto &mas = opt_mas.value();
-	if (!mas.is_map()) {
+	if (!Com::Mas::deserialize(mas, tm)) {
 		std::cerr << "Error: must be a map: " << path << '\n';
 		return false;
 	}
-	target_mas = std::move(mas);
-	return load_target(target_name, target_mas.as_map(), path.parent_path());
+	variant = tm;
+	return load_target(target_name, tm, path.parent_path());
+}
+
+bool Project::load_targets(ProjectModel::TargetMap &targets)
+{
+	for (auto &p : targets) {
+		auto ret = std::visit(
+			[this, &p](auto &tm)
+			{
+				return load_target(p.first, tm, p.second);
+			},
+			p.second
+		);
+		if (!ret) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Project::load_targets(ProjectModel::TargetArray &targets)
+{
+	for (auto &target : targets) {
+		auto ret = std::visit(
+			[this, &target](auto &tm)
+			{
+				return load_target("", tm, target);
+			},
+			target
+		);
+		if (!ret) {
+			return false;
+		}
+	}
+	return true;
 }
 
 std::map<std::string, std::shared_ptr<Target>> const &Project::targets() const
@@ -103,13 +95,13 @@ std::map<std::string, std::shared_ptr<Target>> const &Project::targets() const
 	return _targets;
 }
 
-std::optional<Profile> Project::get_profile(std::string const &name) const
+std::optional<ProjectModel::Profile> Project::get_profile(std::string const &name) const
 {
-	auto it = _profiles.find(name);
-	if (it != _profiles.end()) {
+	auto it = _profile.find(name);
+	if (it != _profile.end()) {
 		return it->second;
 	}
-	return std::optional<Profile>();
+	return {};
 }
 
 Pkgconf *Project::pkgconf()
@@ -117,35 +109,28 @@ Pkgconf *Project::pkgconf()
 	return &_pkgconf;
 }
 
-bool Project::load(Com::Mas::Map const &project_mas)
+bool Project::load(ProjectModel const &project)
 {
-	_project_mas = project_mas;
-	_project_cached = Com::Mas::encode(_project_mas);
-	Com::Mas::get_string(_project_mas, NAME, _name);
-	Com::Mas::get_string(_project_mas, AUTHOR, _author);
-	Com::Mas::get_string(_project_mas, EMAIL, _email);
-	Com::Mas::get_string(_project_mas, LICENSE, _license);
-	Com::Mas::get_string(_project_mas, DESC, _desc);
+	_pm = project;
 
 	setup_default_profiles();
-	if (auto it = _project_mas.find(PROFILE); it != _project_mas.end()) {
-		if (it->second.is_map()) {
-			if (!load_profiles(it->second.map_or({}))) {
-				return false;
-			}
-		}
+
+	if (!std::visit(
+		[this](auto &targets)
+		{
+			return load_targets(targets);
+		},
+		_pm.target
+	)) {
+		return false;
 	}
 
-	if (auto it = _project_mas.find(TARGET); it != _project_mas.end()) {
-		if (!load_targets(it->second)) {
-			return false;
-		}
-	}
 	for (auto &&[name, target] : _targets) {
 		if (!target->apply_templates(_templates)) {
 			return false;
 		}
 	}
+	_project_cached = Com::Mas::encode(Com::Mas::serialize(_pm));
 	return true;
 }
 
@@ -233,50 +218,40 @@ bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> t
 	return target->gen(profile, opt_cdb);
 }
 
-bool Project::load_profiles(Com::Mas::Map const &mas)
-{
-	for (auto &p : mas) {
-		if (!p.second.is_map()) {
-			std::cerr << "Error: profile must be a map\n";
-			return false;
-		}
-		auto &profile = _profiles[p.first];
-		auto profile_map = p.second.map_or({});
-		Com::Mas::get_string(profile_map, PROFILE_CFLAGS, profile.cflags);
-		Com::Mas::get_string(profile_map, PROFILE_LFLAGS, profile.lflags);
-	}
-	return true;
-}
-
 void Project::setup_default_profiles()
 {
-	_profiles["debug"] = { "-Wall -g -DDEBUG", "", };
-	_profiles["release"] = { "-Wall -O2 -DNDEBUG", "", };
+	_profile = _pm.profile;
+	if (!_profile.count("debug")) {
+		_profile["debug"] = { "-Wall -g -DDEBUG", "", };
+	}
+	if (!_profile.count("release")) {
+		_profile["release"] = { "-Wall -O2 -DNDEBUG", "", };
+	}
 }
 
 std::string const &Project::name() const
 {
-	return _name;
+	return _pm.name;
 }
 
 std::string const &Project::author() const
 {
-	return _author;
+	return _pm.author;
 }
 
 std::string const &Project::email() const
 {
-	return _email;
+	return _pm.email;
 }
 
 std::string const &Project::license() const
 {
-	return _license;
+	return _pm.license;
 }
 
 std::string const &Project::desc() const
 {
-	return _desc;
+	return _pm.desc;
 }
 
 bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) const

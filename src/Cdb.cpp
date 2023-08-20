@@ -49,7 +49,7 @@ bool gen_cdb_file(Cdb const &cdb, std::filesystem::path const &dir)
 	auto first_cc = true;
 	auto abs_dir = std::filesystem::absolute(dir).string();
 	for (auto &item : cdb) {
-		auto args = Com::split(item.flags, " ");
+		auto args = Com::split(std::string_view(item.flags), " ");
 		for (auto s : item.files) {
 			CompileCommand cc;
 			cc.file = "../.." / s;

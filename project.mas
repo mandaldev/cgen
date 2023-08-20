@@ -14,6 +14,7 @@
         "src/main.cpp"
         "src/Driver.cpp"
         "src/Project.cpp"
+        "src/ProjectModel.cpp"
         "src/Target.cpp"
         "src/ninja.cpp"
         "src/pkgconf/pkgconf.cpp"

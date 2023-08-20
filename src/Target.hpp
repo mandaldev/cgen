@@ -8,56 +8,38 @@
 #include <memory>
 #include <filesystem>
 #include <functional>
+#include "ProjectModel.hpp"
 
 class Project;
 
 /// a cgen target
 class Target
 {
-	struct InstallItem
-	{
-		std::string dir = ".";
-		std::set<std::filesystem::path> files;
-	};
-
 	Project *_project = nullptr;
 
-	/// fields load from mas
+	ProjectModel::TargetModel _tm;
 
-	std::string _name;
-	std::string _lang;
-	std::string _std;
 	TargetType _type = TargetType::None;
 
 	std::filesystem::path _basedir;
-
-	std::set<std::filesystem::path> _src;
-	std::vector<std::string> _dep; // append indirect deps after `resolve_deps`
-	std::vector<std::string> _pkg; // pkg-conf
-
-	std::string _template;
-
-	std::string _extra_cflags;
-	std::string _extra_lflags;
 
 	/// loaded from `_pkg`
 
 	std::string _pkg_cflags;
 	std::string _pkg_lflags;
 
-	/// extra items to install
-	std::vector<InstallItem> _installItems;
-
 	bool _deps_resolved = false; // mark, dont resolve again
+	/// resolved deps
+	std::vector<std::string> _dep;
 
-	bool load_pkgconfs(Com::Mas::Map const &target_mas);
+	bool load_pkgconfs();
 
-	bool load_installs(Com::Mas::Map &target_mas);
+	void load_installs();
 
 	bool apply_override(
 		std::map<std::string, std::shared_ptr<Target>> const &all_templates,
 		const char *field_name,
-		std::function<std::string &(Target &target)> field
+		std::function<std::string &(ProjectModel::TargetModel &)> field
 	);
 
 	bool apply_append(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
@@ -70,7 +52,7 @@ public:
 	Target &operator=(Target const &) = delete;
 
 	/// load target data from mas
-	bool load(std::string const &name, Com::Mas::Map &target_mas, std::filesystem::path const &basedir = "");
+	bool load(std::string const &name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir = "");
 
 	std::string name() const;
 
@@ -95,6 +77,8 @@ public:
 
 	/// install target files
 	bool install(std::filesystem::path const &prefix, std::string const &profile) const;
+
+	Com::Mas::Value exports() const;
 
 }; // class Target
 

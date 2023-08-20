@@ -74,6 +74,8 @@
                 "variant": "cpp",
                 "*.ipp": "cpp",
                 "filesystem": "cpp",
-                "locale": "cpp"
+                "locale": "cpp",
+                "charconv": "cpp",
+                "unordered_set": "cpp"
         }
 }

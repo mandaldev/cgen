@@ -28,19 +28,15 @@ static const auto INSTALL = "install";
 static const auto INSTALL_DIR = "dir";
 static const auto INSTALL_FILES = "files";
 
-static bool load_and_fix_paths(Com::Mas::Value &paths_mas, std::set<std::filesystem::path> &paths, std::filesystem::path const &base)
+static void load_and_fix_paths(std::set<std::filesystem::path> &paths, std::filesystem::path const &base)
 {
 	if (!base.empty()) {
-		std::vector<std::filesystem::path> tmp;
-		if (!Com::Mas::deserialize(paths_mas, tmp)) {
-			return false;
+		std::set<std::filesystem::path> tmp;
+		for (auto &p : paths) {
+			tmp.insert(base / p);
 		}
-		for (auto &p : tmp) {
-			p = base / p;
-		}
-		paths_mas = Com::Mas::serialize(tmp);
+		paths = tmp;
 	}
-	return Com::Mas::deserialize(paths_mas, paths);
 }
 
 Target::Target(Project *project)
@@ -48,20 +44,9 @@ Target::Target(Project *project)
 {
 }
 
-bool Target::load_pkgconfs(Com::Mas::Map const &target_mas)
+bool Target::load_pkgconfs()
 {
-	auto it = target_mas.find(PKGCONF);
-	if (it == target_mas.end()) {
-		return true;
-	}
-	std::set<std::string> pkg;
-	if (!Com::Mas::deserialize(it->second, pkg)) {
-		std::cerr << "Error: invalid 'pkgconf' of target '" << _name << "\n";
-		return false;
-	}
-	_pkg = {pkg.begin(), pkg.end()};
-
-	for (auto &p : _pkg) {
+	for (auto &p : _tm.pkgconf) {
 		if (!_project->pkgconf()->find(p)) {
 			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg\n";
 			return false;
@@ -72,100 +57,53 @@ bool Target::load_pkgconfs(Com::Mas::Map const &target_mas)
 	return true;
 }
 
-bool Target::load_installs(Com::Mas::Map &target_mas)
+void Target::load_installs()
 {
-	auto it = target_mas.find(INSTALL);
-	if (it == target_mas.end()) {
-		return true;
+	for (auto &item : _tm.install) {
+		load_and_fix_paths(item.files, _basedir);
 	}
-	if (!it->second.is_array()) {
-		std::cerr << "Error: invalid 'install' of target '" << _name << "'\n";
-		return false;
-	}
-	auto &install_mas = it->second.as_array();
-	for (auto &item_mas : install_mas) {
-		if (!item_mas.is_map()) {
-			std::cerr << "Error: 'install' list element must be a map!\n";
-			return false;
-		}
-		InstallItem item;
-		auto &item_map = item_mas.as_map();
-		auto dir = item_map.find(INSTALL_DIR);
-		if (dir != item_map.end()) {
-			item.dir = dir->second.string_or(item.dir);
-		}
-		auto files_mas = item_map.find(INSTALL_FILES);
-		if (files_mas != item_map.end()) {
-			if (!load_and_fix_paths(files_mas->second, item.files, _basedir)) {
-			}
-		}
-		if (item.files.size()) {
-			_installItems.push_back(item);
-		}
-	}
-	return true;
 }
 
-bool Target::load(std::string const &name, Com::Mas::Map &target_mas, std::filesystem::path const &basedir)
+bool Target::load(std::string const &name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir)
 {
-	std::string lang, type;
+	_tm = tm;
 	if (name.size()) {
-		_name = name;
-	} else {
-		Com::Mas::get_string(target_mas, NAME, _name);
+		_tm.name = name;
 	}
-	Com::Mas::get_string(target_mas, LANG, lang);
-	Com::Mas::get_string(target_mas, STD, _std);
-	Com::Mas::get_string(target_mas, TYPE, type);
-	Com::Mas::get_string(target_mas, EXTRA_CFLAGS, _extra_cflags);
-	Com::Mas::get_string(target_mas, EXTRA_LFLAGS, _extra_lflags);
-	Com::Mas::get_string(target_mas, TEMPLATE, _template);
-	if (type == "exe") {
+	if (_tm.type == "exe") {
 		_type = TargetType::Executable;
-	} else if (type == "slib") {
+	} else if (_tm.type == "slib") {
 		_type = TargetType::StaticLibrary;
-	} else if (type == "dlib") {
+	} else if (_tm.type == "dlib") {
 		_type = TargetType::DynamicLibrary;
-	} else if (type == "phony") {
+	} else if (_tm.type == "phony") {
 		_type = TargetType::Phony;
-	} else if (type == "template") {
+	} else if (_tm.type == "template") {
 		_type = TargetType::Template;
 	} else {
-		std::cerr << "Unknown target type: " << type << "\n";
+		std::cerr << "Unknown target type: " << _tm.type << "\n";
 		return false;
 	}
-	if (LANG_C_SET.count(lang)) {
-		_lang = LANG_C;
-	} else if (LANG_CPP_SET.count(lang)) {
-		_lang = LANG_CPP;
-	} else if (_type != TargetType::Phony && _type != TargetType::Template && _template.empty()) {
-		std::cerr << "Unknown language: " << lang << "\n";
+	if (LANG_C_SET.count(_tm.language)) {
+		_tm.language = LANG_C;
+	} else if (LANG_CPP_SET.count(_tm.language)) {
+		_tm.language = LANG_CPP;
+	} else if (_type != TargetType::Phony && _type != TargetType::Template && _tm.template_.empty()) {
+		std::cerr << "Unknown language: " << _tm.language << "\n";
 		return false;
 	}
-	_basedir = basedir;
 
-	auto it = target_mas.find(SRC);
-	if (it != target_mas.end()) {
-		if (!load_and_fix_paths(it->second, _src, _basedir)) {
-			std::cerr << "Error: invalid 'src' of target '" << _name << "\n";
-			return false;
-		}
-	}
-	it = target_mas.find(DEP);
-	if (it != target_mas.end()) {
-		std::set<std::string> dep;
-		if (!Com::Mas::deserialize(it->second, dep)) {
-			std::cerr << "Error: invalid 'dep' of target '" << _name << "\n";
-			return false;
-		}
-		_dep = {dep.begin(), dep.end()};
-	}
-	return load_pkgconfs(target_mas) && load_installs(target_mas);
+	_basedir = basedir;
+	load_and_fix_paths(_tm.src, _basedir);
+
+	load_installs();
+	tm = _tm;
+	return load_pkgconfs();
 }
 
 std::string Target::name() const
 {
-	return _name;
+	return _tm.name;
 }
 
 TargetType Target::type() const
@@ -184,8 +122,8 @@ bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &
 		return true;
 	}
 	_deps_resolved = true; // in case of loop
-	auto dep = _dep;
-	for (auto &d : _dep) {
+	_dep = _tm.dep;
+	for (auto &d : _tm.dep) {
 		auto it = all_targets.find(d);
 		if (it == all_targets.end()) {
 			std::cerr << "Error: no target named " << d << " found\n";
@@ -195,9 +133,8 @@ bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &
 			return false;
 		}
 		auto ddep = it->second->dep();
-		dep.insert(dep.end(), ddep.begin(), ddep.end());
+		_dep.insert(_dep.end(), ddep.begin(), ddep.end());
 	}
-	_dep = dep;
 	return true;
 }
 
@@ -214,9 +151,9 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 		return false;
 	}
 	std::string cc;
-	if (_lang == LANG_C) {
+	if (_tm.language == LANG_C) {
 		cc = "gcc";
-	} else if (_lang == LANG_CPP) {
+	} else if (_tm.language == LANG_CPP) {
 		cc = "g++";
 	} else {
 		return false;
@@ -224,7 +161,7 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 
 	std::vector<std::string> cflags;
 	std::vector<std::string> lflags;
-	cflags.push_back("-std=" + _std);
+	cflags.push_back("-std=" + _tm.std);
 	cflags.push_back(external_cflags());
 	lflags.push_back(external_lflags());
 
@@ -245,15 +182,15 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 		CdbItem item;
 		item.cmd = cc;
 		item.flags = cflag;
-		item.files = _src;
+		item.files = _tm.src;
 		opt_cdb.value().push_back(item);
 	}
 	return gen_ninja_target_build(
 		profile,
 		cc,
 		_type,
-		_name,
-		_src,
+		_tm.name,
+		_tm.src,
 		deps,
 		Com::join(" ", cflags),
 		Com::join(" ", lflags)
@@ -262,48 +199,48 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 
 std::string Target::external_cflags() const
 {
-	return std::string(Com::trim(_pkg_cflags + " " + _extra_cflags));
+	return std::string(Com::trim(_pkg_cflags + " " + _tm.extra_cflags));
 }
 
 std::string Target::external_lflags() const
 {
-	return std::string(Com::trim(_pkg_lflags + " " + _extra_lflags));
+	return std::string(Com::trim(_pkg_lflags + " " + _tm.extra_lflags));
 }
 
 bool Target::apply_override(
 	std::map<std::string, std::shared_ptr<Target>> const &all_templates,
 	const char *field_name,
-	std::function<std::string &(Target &target)> field
+	std::function<std::string &(ProjectModel::TargetModel &)> field
 )
 {
-	auto temp = _template;
-	while (field(*this).empty()) {
+	auto temp = _tm.template_;
+	while (field(_tm).empty()) {
 		if (temp.empty()) {
 			std::cerr << "Error: target's " << field_name << " field not specified, no templates applyed\n";
 			return false;
 		}
 		auto it = all_templates.find(temp);
 		if (it == all_templates.end()) {
-			std::cerr << "Error: Template not found: " << _template << "\n";
+			std::cerr << "Error: Template not found: " << _tm.template_ << "\n";
 			return false;
 		}
-		field(*this) = field(*it->second);
-		temp = it->second->_template;
+		field(_tm) = field(it->second->_tm);
+		temp = it->second->_tm.template_;
 	}
 	return true;
 }
 
 bool Target::apply_append(std::map<std::string, std::shared_ptr<Target>> const &all_templates)
 {
-	auto temp = _template;
+	auto temp = _tm.template_;
 	while (temp.size()) {
 		auto it = all_templates.find(temp);
 		if (it == all_templates.end()) {
-			std::cerr << "Error: Template not found: " << _template << "\n";
+			std::cerr << "Error: Template not found: " << _tm.template_ << "\n";
 			return false;
 		}
 		append(it->second);
-		temp = it->second->_template;
+		temp = it->second->_tm.template_;
 	}
 	return true;
 }
@@ -311,29 +248,29 @@ bool Target::apply_append(std::map<std::string, std::shared_ptr<Target>> const &
 void Target::append(std::shared_ptr<Target> target)
 {
 	// append these fields
-	_dep.insert(_dep.begin(), target->_dep.begin(), target->_dep.end());
-	_pkg.insert(_pkg.begin(), target->_pkg.begin(), target->_pkg.end());
-	_extra_cflags = target->_extra_cflags + _extra_cflags;
-	_extra_lflags = target->_extra_lflags + _extra_lflags;
+	_tm.dep.insert(_tm.dep.begin(), target->_tm.dep.begin(), target->_tm.dep.end());
+	_tm.pkgconf.insert(_tm.pkgconf.begin(), target->_tm.pkgconf.begin(), target->_tm.pkgconf.end());
+	_tm.extra_cflags = target->_tm.extra_cflags + _tm.extra_cflags;
+	_tm.extra_lflags = target->_tm.extra_lflags + _tm.extra_lflags;
 	_pkg_cflags = target->_pkg_cflags + _pkg_cflags;
 	_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
 }
 
 bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates)
 {
-	if (_template.empty()) {
+	if (_tm.template_.empty()) {
 		return true;
 	}
-	auto it = all_templates.find(_template);
+	auto it = all_templates.find(_tm.template_);
 	if (it == all_templates.end()) {
-		std::cerr << "Error: Template not found: " << _template << "\n";
+		std::cerr << "Error: Template not found: " << _tm.template_ << "\n";
 		return false;
 	}
 
-	if (!apply_override(all_templates, LANG, &Target::_lang)) {
+	if (!apply_override(all_templates, LANG, &ProjectModel::TargetModel::language)) {
 		return false;
 	}
-	if (!apply_override(all_templates, STD, &Target::_std)) {
+	if (!apply_override(all_templates, STD, &ProjectModel::TargetModel::std)) {
 		return false;
 	}
 
@@ -362,14 +299,14 @@ static bool install_file(std::filesystem::path const &p, std::filesystem::path c
 
 bool Target::install(std::filesystem::path const &prefix, std::string const &profile) const
 {
-	auto target_file = target_file_name(_name, _type);
+	auto target_file = target_file_name(_tm.name, _type);
 	if (target_file.empty()) {
 		return true;
 	}
 	if (!install_file("./build/" + profile + "/" + target_file, prefix / target_install_subdir(_type))) {
 		return false;
 	}
-	for (auto &item : _installItems) {
+	for (auto &item : _tm.install) {
 		for (auto &file : item.files) {
 			if (!install_file(file, prefix / item.dir)) {
 				return false;
@@ -377,4 +314,16 @@ bool Target::install(std::filesystem::path const &prefix, std::string const &pro
 		}
 	}
 	return true;
+}
+
+Com::Mas::Value Target::exports() const
+{
+	return Com::Mas::serialize_kvs(
+		COM_KV(_tm, name),
+		COM_KV(_tm, language),
+		COM_KV(_tm, std),
+		COM_KV(_tm, type),
+		COM_KV(_tm, dep),
+		COM_KV(_tm, pkgconf)
+	);
 }

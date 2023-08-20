@@ -203,13 +203,19 @@ bool Driver::load_project()
 	}
 	_old_cwd = res.second;
 
-	auto mas = Com::load_mas_file(PROJECT_MAS);
-	if (!mas.has_value() || !mas.value().is_map()) {
+	auto opt_mas = Com::load_mas_file(PROJECT_MAS);
+	if (!opt_mas.has_value() || !opt_mas.value().is_map()) {
 		std::cerr << "Not a valid cgen project file\n";
 		return false;
 	}
+	auto &mas = opt_mas.value();
+	ProjectModel pm;
+	if (!Com::Mas::deserialize(mas, pm)) {
+		std::cerr << "Failed to load cgen project file\n";
+		return false;
+	}
 
-	if (!_project.load(mas.value().as_map())) {
+	if (!_project.load(pm)) {
 		std::cerr << "Failed to load cgen project file\n";
 		return false;
 	}
