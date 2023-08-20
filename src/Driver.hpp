@@ -21,8 +21,6 @@ class Driver
 	std::filesystem::path _old_cwd;
 	Project _project;
 
-	std::vector<std::filesystem::path> _data_dirs;
-
  	std::string _author;
  	std::string _desc;
  	std::string _license;
@@ -41,10 +39,6 @@ class Driver
 	bool gen_project(std::string const &name);
 
 	bool gen_class(std::vector<std::string> const &names);
-
-	void setup_data_dirs();
-
-	std::string load_runtime_file(std::filesystem::path const &path);
 
 	std::string load_license(std::string const &license_name);
 

@@ -20,13 +20,13 @@ namespace Com::Mas {
 template <>
 Value serialize(ProjectModel::TargetModel::Install const &v)
 {
-	return serialize_kvs(COM_KV(v, dir), COM_KV(v, files));
+	return serialize_kvs(COM_KV(v, dir), COM_KV(v, files), COM_KV(v, headers));
 }
 
 template <>
 bool deserialize(Value const &mas, ProjectModel::TargetModel::Install &v)
 {
-	return deserialize_kvs(mas, COM_KV(v, dir), COM_KV(v, files));
+	return deserialize_kvs(mas, COM_KV(v, dir), COM_KV(v, files), COM_KV(v, headers));
 }
 
 template <>
@@ -87,7 +87,7 @@ Value serialize(ProjectModel const &v)
 		COM_KV(v, email),
 		COM_KV(v, desc),
 		COM_KV(v, license),
-		"import", v.import_,
+		COM_KV(v, import_dir),
 		COM_KV(v, profile),
 		COM_KV(v, target)
 	);
@@ -103,7 +103,7 @@ bool deserialize(Value const &mas, ProjectModel &v)
 		COM_KV(v, email),
 		COM_KV(v, desc),
 		COM_KV(v, license),
-		"import", v.import_,
+		COM_KV(v, import_dir),
 		COM_KV(v, profile),
 		COM_KV(v, target)
 	);

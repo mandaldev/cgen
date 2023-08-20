@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <ctime>
 #include <locale>
+#include <filesystem>
+#include <Com/Xo/exec.hpp>
 
 using namespace std::literals;
 
@@ -19,6 +21,13 @@ enum class TargetType {
 
 static std::string const PROJECT_MAS = "project.mas";
 
-static const auto LICENSES_FOLDER = "licenses";
+static const std::filesystem::path LICENSES_FOLDER = "licenses";
+static const std::filesystem::path INSTALLED_FOLDER = "installed";
+
+std::vector<std::filesystem::path> const &cgen_data_dirs();
+
+std::string load_runtime_file(std::vector<std::filesystem::path> const &data_dirs, std::filesystem::path const & path);
+
+std::string load_runtime_file(std::filesystem::path const & path);
 
 #endif

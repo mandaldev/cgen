@@ -3,30 +3,16 @@
 #include "ninja.hpp"
 #include "Project.hpp"
 #include <Com/string.hpp>
+#include <Com/file.hpp>
 #include <Com/Mas/serialize.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
 
-static const auto NAME = "name";
-
-static const auto LANG = "language";
 static const auto LANG_C = "c";
 static const auto LANG_CPP = "c++";
 static const std::set<std::string> LANG_C_SET = {"c", "C"};
 static const std::set<std::string> LANG_CPP_SET = {"c++", "C++", "cpp", "CPP"};
-
-static const auto STD = "std";
-static const auto TYPE = "type";
-static const auto SRC = "src";
-static const auto DEP = "dep";
-static const auto PKGCONF = "pkgconf";
-static const auto EXTRA_CFLAGS = "extra_cflags";
-static const auto EXTRA_LFLAGS = "extra_lflags";
-static const auto TEMPLATE = "template";
-static const auto INSTALL = "install";
-static const auto INSTALL_DIR = "dir";
-static const auto INSTALL_FILES = "files";
 
 static void load_and_fix_paths(std::set<std::filesystem::path> &paths, std::filesystem::path const &base)
 {
@@ -61,6 +47,7 @@ void Target::load_installs()
 {
 	for (auto &item : _tm.install) {
 		load_and_fix_paths(item.files, _basedir);
+		load_and_fix_paths(item.headers, _basedir);
 	}
 }
 
@@ -116,7 +103,10 @@ std::vector<std::string> Target::dep() const
 	return _dep;
 }
 
-bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets)
+bool Target::resolve_deps(
+	std::map<std::string, std::shared_ptr<Target>> const &all_targets,
+	std::map<std::string, std::shared_ptr<Target>> &imports
+)
 {
 	if (_deps_resolved) {
 		return true;
@@ -124,21 +114,26 @@ bool Target::resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &
 	_deps_resolved = true; // in case of loop
 	_dep = _tm.dep;
 	for (auto &d : _tm.dep) {
+		std::vector<std::string> indirects;
 		auto it = all_targets.find(d);
 		if (it == all_targets.end()) {
-			std::cerr << "Error: no target named " << d << " found\n";
+			if (auto dep = import_target(imports, d)) {
+				indirects = dep->dep();
+			} else {
+				std::cerr << "Error: failed to resolve dep of '" << d << "'\n";
+				return false;
+			}
+		} else if (it->second->resolve_deps(all_targets, imports)) {
+			indirects = it->second->dep();
+		} else {
 			return false;
 		}
-		if (!it->second->resolve_deps(all_targets)) {
-			return false;
-		}
-		auto ddep = it->second->dep();
-		_dep.insert(_dep.end(), ddep.begin(), ddep.end());
+		_dep.insert(_dep.end(), indirects.begin(), indirects.end());
 	}
 	return true;
 }
 
-bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
+bool Target::gen(std::string const &profile, std::map<std::string, std::shared_ptr<Target>> const &imports, std::optional<Cdb> &opt_cdb) const
 {
 	switch (_type) {
 	case TargetType::Executable:
@@ -172,9 +167,11 @@ bool Target::gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const
 			if (it->second->type() != TargetType::Phony) {
 				deps.push_back({it->second->type() == TargetType::StaticLibrary, d});
 			}
-			cflags.push_back(it->second->external_cflags());
-			lflags.push_back(it->second->external_lflags());
+		} else if (it = imports.find(d); it == imports.end()) {
+			continue;
 		}
+		cflags.push_back(it->second->external_cflags());
+		lflags.push_back(it->second->external_lflags());
 	}
 	auto cflag = Com::join(" ", cflags);
 	auto lflag = Com::join(" ", lflags);
@@ -209,15 +206,13 @@ std::string Target::external_lflags() const
 
 bool Target::apply_override(
 	std::map<std::string, std::shared_ptr<Target>> const &all_templates,
-	const char *field_name,
 	std::function<std::string &(ProjectModel::TargetModel &)> field
 )
 {
 	auto temp = _tm.template_;
 	while (field(_tm).empty()) {
 		if (temp.empty()) {
-			std::cerr << "Error: target's " << field_name << " field not specified, no templates applyed\n";
-			return false;
+			break;
 		}
 		auto it = all_templates.find(temp);
 		if (it == all_templates.end()) {
@@ -256,6 +251,35 @@ void Target::append(std::shared_ptr<Target> target)
 	_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
 }
 
+std::shared_ptr<Target> Target::import_target(std::map<std::string, std::shared_ptr<Target>> &imports, std::string const &name)
+{
+	auto it = imports.find(name);
+	if (it != imports.end()) {
+		return it->second;
+	}
+	auto text = load_runtime_file(_project->import_dirs(), INSTALLED_FOLDER / (name + ".mas"));
+	if (text.empty()) {
+		std::cerr << "Error: external dep not found: " << name << '\n';
+		return {};
+	}
+	ProjectModel::TargetModel tm;
+	if (!Com::Mas::deserialize(Com::Mas::decode(text).value_or(""), tm)) {
+		std::cerr << "Error: failed to load external dep: " << name << '\n';
+		return {};
+	}
+	auto target = std::make_shared<Target>(_project);
+	if (!target->load("", tm)) {
+		std::cerr << "Error: failed to load external dep: " << name << '\n';
+		return {};
+	}
+	if (!target->resolve_deps({}, imports)) {
+		return {};
+	}
+	imports[target->name()] = target;
+	return target;
+}
+
+
 bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates)
 {
 	if (_tm.template_.empty()) {
@@ -267,10 +291,18 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 		return false;
 	}
 
-	if (!apply_override(all_templates, LANG, &ProjectModel::TargetModel::language)) {
+	if (!apply_override(all_templates, &ProjectModel::TargetModel::language)) {
 		return false;
 	}
-	if (!apply_override(all_templates, STD, &ProjectModel::TargetModel::std)) {
+	if (_tm.language.empty()) {
+		std::cerr << "Error: target's language field not specified, no templates applyed\n";
+		return false;
+	}
+	if (!apply_override(all_templates, &ProjectModel::TargetModel::std)) {
+		return false;
+	}
+	if (_tm.std.empty()) {
+		std::cerr << "Error: target's std field not specified, no templates applyed\n";
 		return false;
 	}
 
@@ -280,50 +312,84 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 	return true;
 }
 
-static bool install_file(std::filesystem::path const &p, std::filesystem::path const &dir)
+static std::filesystem::path install_file(std::filesystem::path const &p, std::filesystem::path const &dir)
 {
 	std::error_code ec{};
 	std::filesystem::create_directories(dir, ec);
 	if (ec) {
 		std::cerr << "Error: failed to create directory " << dir << ", error: " << ec << "\n";
-		return false;
+		return {};
 	}
-	std::filesystem::copy_file(p, dir / p.filename(), std::filesystem::copy_options::overwrite_existing, ec);
+	auto dst = dir / p.filename();
+	std::filesystem::copy_file(p, dst, std::filesystem::copy_options::overwrite_existing, ec);
 	if (ec) {
 		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
-		return false;
+		return {};
 	}
 	std::cerr << "Succeed to install " << p << " to " << dir << "\n";
-	return true;
+	return dst;
 }
 
 bool Target::install(std::filesystem::path const &prefix, std::string const &profile) const
 {
+	std::vector<std::filesystem::path> installed;
 	auto target_file = target_file_name(_tm.name, _type);
-	if (target_file.empty()) {
-		return true;
-	}
-	if (!install_file("./build/" + profile + "/" + target_file, prefix / target_install_subdir(_type))) {
-		return false;
+	if (!target_file.empty()) {
+		auto dst = install_file("./build/" + profile + "/" + target_file, prefix / target_install_subdir(_type));
+		if (dst.empty()) {
+			return false;
+		}
+		installed.push_back(dst);
 	}
 	for (auto &item : _tm.install) {
 		for (auto &file : item.files) {
-			if (!install_file(file, prefix / item.dir)) {
+			auto dst = install_file(file, prefix / item.dir);
+			if (dst.empty()) {
 				return false;
 			}
+			installed.push_back(dst);
 		}
+		for (auto &file : item.headers) {
+			auto dst = install_file(file, prefix / "include" / item.dir);
+			if (dst.empty()) {
+				return false;
+			}
+			installed.push_back(dst);
+		}
+	}
+	auto dst = exports(prefix);
+	if (dst.empty()) {
+		return false;
+	}
+	installed.push_back(dst);
+	installed.push_back(prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".list"));
+	if (!Com::save_pretty_mas_file(installed.back(), Com::Mas::serialize(installed))) {
+		return false;
 	}
 	return true;
 }
 
-Com::Mas::Value Target::exports() const
+std::filesystem::path Target::exports(std::filesystem::path const &prefix) const
 {
-	return Com::Mas::serialize_kvs(
-		COM_KV(_tm, name),
-		COM_KV(_tm, language),
-		COM_KV(_tm, std),
-		COM_KV(_tm, type),
-		COM_KV(_tm, dep),
-		COM_KV(_tm, pkgconf)
+	if (_type != TargetType::StaticLibrary && _type != TargetType::DynamicLibrary) {
+		return {};
+	}
+	auto tm = _tm;
+	tm.extra_cflags = "-I" + (prefix / "include").string() + " " + tm.extra_cflags;
+	tm.extra_lflags = "-L" + (prefix / "lib").string() + " " + tm.extra_lflags;
+	auto mas = Com::Mas::serialize_kvs(
+		COM_KV(tm, name),
+		COM_KV(tm, language),
+		COM_KV(tm, std),
+		COM_KV(tm, type),
+		COM_KV(tm, dep),
+		COM_KV(tm, pkgconf),
+		COM_KV(tm, extra_cflags),
+		COM_KV(tm, extra_lflags)
 	);
+	auto export_file = prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".mas");
+	if (!Com::save_pretty_mas_file(export_file, mas)) {
+		return {};
+	}
+	return export_file;
 }

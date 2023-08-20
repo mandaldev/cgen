@@ -112,6 +112,15 @@ Pkgconf *Project::pkgconf()
 bool Project::load(ProjectModel const &project)
 {
 	_pm = project;
+	_import_dir = _pm.import_dir;
+	for (auto &p : _import_dir) {
+		p /= "share";
+		p /= "cgen";
+	}
+	{
+		auto dirs = cgen_data_dirs();
+		_import_dir.insert(_import_dir.end(), dirs.begin(), dirs.end());
+	}
 
 	setup_default_profiles();
 
@@ -131,6 +140,12 @@ bool Project::load(ProjectModel const &project)
 		}
 	}
 	_project_cached = Com::Mas::encode(Com::Mas::serialize(_pm));
+
+	for (auto &&[name, target] : _targets) {
+		if (!target->resolve_deps(_targets, _imports)) {
+			return false;
+		}
+	}
 	return true;
 }
 
@@ -215,7 +230,7 @@ bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> t
 			return false;
 		}
 	}
-	return target->gen(profile, opt_cdb);
+	return target->gen(profile, _imports, opt_cdb);
 }
 
 void Project::setup_default_profiles()
@@ -254,6 +269,11 @@ std::string const &Project::desc() const
 	return _pm.desc;
 }
 
+std::vector<std::filesystem::path> const &Project::import_dirs() const
+{
+	return _import_dir;
+}
+
 bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) const
 {
 	auto opt_profile = get_profile(profile_name);
@@ -263,11 +283,6 @@ bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) 
 	}
 	auto &profile = opt_profile.value();
 	std::set<std::string> generated;
-	for (auto &&[name, target] : _targets) {
-		if (!target->resolve_deps(_targets)) {
-			return false;
-		}
-	}
 	for (auto &&[name, target] : _targets) {
 		if (!gen_with_dep(profile_name, target, generated, opt_cdb)) { // generate each target first
 			return false;

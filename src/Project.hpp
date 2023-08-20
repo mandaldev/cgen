@@ -10,9 +10,10 @@ class Project
 	std::string _project_cached;
 
 	ProjectModel _pm;
+	std::vector<std::filesystem::path> _import_dir;
 	std::map<std::string, ProjectModel::Profile> _profile;
 
-	std::map<std::string, std::shared_ptr<Target>> _targets, _templates;
+	std::map<std::string, std::shared_ptr<Target>> _targets, _templates, _imports;
 
 	Pkgconf _pkgconf;
 
@@ -51,6 +52,8 @@ public:
 	std::string const &license() const;
 
 	std::string const &desc() const;
+
+	std::vector<std::filesystem::path> const &import_dirs() const;
 
 	std::map<std::string, std::shared_ptr<Target>> const &targets() const;
 

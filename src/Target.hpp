@@ -38,13 +38,17 @@ class Target
 
 	bool apply_override(
 		std::map<std::string, std::shared_ptr<Target>> const &all_templates,
-		const char *field_name,
 		std::function<std::string &(ProjectModel::TargetModel &)> field
 	);
 
 	bool apply_append(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
 
 	void append(std::shared_ptr<Target> target);
+
+	std::shared_ptr<Target> import_target(std::map<std::string, std::shared_ptr<Target>> &imports, std::string const &name);
+
+	/// export this target only: not include its indirect dep and pkgconf
+	std::filesystem::path exports(std::filesystem::path const &prefix) const;
 
 public:
 	Target(Project *project);
@@ -67,18 +71,19 @@ public:
 	std::string external_lflags() const;
 
 	/// resolve deps
-	bool resolve_deps(std::map<std::string, std::shared_ptr<Target>> const &all_targets);
+	bool resolve_deps(
+		std::map<std::string, std::shared_ptr<Target>> const &all_targets,
+		std::map<std::string, std::shared_ptr<Target>> &imports
+	);
 
 	/// generate build scripts
-	bool gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
+	bool gen(std::string const &profile, std::map<std::string, std::shared_ptr<Target>> const &imports, std::optional<Cdb> &opt_cdb) const;
 
 	/// apply templates
 	bool apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
 
 	/// install target files
 	bool install(std::filesystem::path const &prefix, std::string const &profile) const;
-
-	Com::Mas::Value exports() const;
 
 }; // class Target
 

@@ -1,5 +1,6 @@
 #include "Driver.hpp"
 #include "help.hpp"
+#include "common.hpp"
 #include <Com/Xo/exec.hpp>
 #include <Com/file.hpp>
 #include <Com/Date.hpp>
@@ -484,50 +485,14 @@ bool Driver::gen_files(
 	return true;
 }
 
-void Driver::setup_data_dirs()
-{
-	if (_data_dirs.size()) {
-		return;
-	}
-	std::filesystem::path home = getenv("HOME");
-	if (!home.empty()) {
-		_data_dirs.push_back(home / ".cgen");
-		_data_dirs.push_back(home / ".local/share/cgen");
-	}
-	auto p = Com::exec_install_prefix();
-	if (!p.empty()) {
-		_data_dirs.push_back(p / "share/cgen");
-	}
-}
-
-std::string Driver::load_runtime_file(std::filesystem::path const & path)
-{
-	if (_data_dirs.empty()) {
-		setup_data_dirs();
-	}
-	for (auto &dir : _data_dirs) {
-		auto p = dir / path;
-		std::error_code ec{};
-		if (!std::filesystem::exists(p, ec) || ec) {
-			continue;
-		}
-		auto buf = Com::load_file(p);
-		if (buf) {
-			return buf.value();
-		}
-	}
-	std::cerr << "Warning: file not found at any runtime folders: " << path << "\n";
-	return {};
-}
-
 std::string Driver::load_license(std::string const &license_name)
 {
-	return load_runtime_file(std::filesystem::path(LICENSES_FOLDER) / license_name);
+	return load_runtime_file(LICENSES_FOLDER / license_name);
 }
 
 std::string Driver::load_license_header(std::string const &license_name)
 {
-	return load_runtime_file(std::filesystem::path(LICENSES_FOLDER) / (license_name + ".header"));
+	return load_runtime_file(LICENSES_FOLDER / (license_name + ".header"));
 }
 
 void Driver::setup_files_options(bool preload_project)

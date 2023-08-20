@@ -19,6 +19,7 @@
         "src/ninja.cpp"
         "src/pkgconf/pkgconf.cpp"
         "src/Cdb.cpp"
+        "src/common.cpp"
       ]
 
       pkgconf [

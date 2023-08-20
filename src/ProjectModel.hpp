@@ -30,7 +30,9 @@ struct ProjectModel
 	std::string desc;
 	std::string license;
 
-	std::set<std::string> import_;
+	/// dirs to look for imported targets
+	/// like "/usr/local"
+	std::vector<std::filesystem::path> import_dir;
 
 	struct Profile
 	{
@@ -57,6 +59,7 @@ struct ProjectModel
 		{
 			std::string dir;
 			std::set<std::filesystem::path> files;
+			std::set<std::filesystem::path> headers;
 		};
 		std::vector<Install> install;
 	};
