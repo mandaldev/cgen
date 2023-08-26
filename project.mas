@@ -25,7 +25,10 @@
       pkgconf [
         "libpkgconf"
       ]
-      extra_lflags "-lCom"
+
+      dep [
+        "Com"
+      ]
 
       install [
         {
