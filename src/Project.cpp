@@ -223,6 +223,9 @@ bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> t
 	for (auto &d : target->dep()) {
 		auto it = _targets.find(d);
 		if (it == _targets.end()) {
+			if (_imports.count(d)) {
+				continue;
+			}
 			std::cerr << "Error: no target named " << d << " found\n";
 			return false;
 		}
