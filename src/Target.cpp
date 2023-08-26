@@ -371,22 +371,29 @@ bool Target::install(std::filesystem::path const &prefix, std::string const &pro
 
 std::filesystem::path Target::exports(std::filesystem::path const &prefix) const
 {
-	if (_type != TargetType::StaticLibrary && _type != TargetType::DynamicLibrary) {
-		return {};
-	}
 	auto tm = _tm;
-	tm.extra_cflags = Com::join(" ", "-I" + (prefix / "include").string(), tm.extra_cflags);
-	tm.extra_lflags = Com::join(" ", "-l" + tm.name + " -L" + (prefix / "lib").string(), tm.extra_lflags);
-	auto mas = Com::Mas::serialize_kvs(
-		COM_KV(tm, name),
-		COM_KV(tm, language),
-		COM_KV(tm, std),
-		COM_KV(tm, type),
-		COM_KV(tm, dep),
-		COM_KV(tm, pkgconf),
-		COM_KV(tm, extra_cflags),
-		COM_KV(tm, extra_lflags)
-	);
+	Com::Mas::Value mas;
+	if (_type == TargetType::StaticLibrary || _type == TargetType::DynamicLibrary) {
+		tm.extra_cflags = Com::join(" ", "-I" + (prefix / "include").string(), tm.extra_cflags);
+		tm.extra_lflags = Com::join(" ", "-l" + tm.name + " -L" + (prefix / "lib").string(), tm.extra_lflags);
+		mas = Com::Mas::serialize_kvs(
+			COM_KV(tm, name),
+			COM_KV(tm, language),
+			COM_KV(tm, std),
+			COM_KV(tm, type),
+			COM_KV(tm, dep),
+			COM_KV(tm, pkgconf),
+			COM_KV(tm, extra_cflags),
+			COM_KV(tm, extra_lflags)
+		);
+	} else {
+		mas = Com::Mas::serialize_kvs(
+			COM_KV(tm, name),
+			COM_KV(tm, language),
+			COM_KV(tm, std),
+			COM_KV(tm, type)
+		);
+	}
 	auto export_file = prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".mas");
 	if (!Com::save_pretty_mas_file(export_file, mas)) {
 		return {};
