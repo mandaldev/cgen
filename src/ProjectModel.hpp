@@ -32,7 +32,7 @@ struct ProjectModel
 
 	/// dirs to look for imported targets
 	/// like "/usr/local"
-	std::vector<std::filesystem::path> import_dir;
+	std::vector<std::filesystem::path> imports;
 
 	struct Profile
 	{

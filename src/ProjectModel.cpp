@@ -87,7 +87,7 @@ Value serialize(ProjectModel const &v)
 		COM_KV(v, email),
 		COM_KV(v, desc),
 		COM_KV(v, license),
-		COM_KV(v, import_dir),
+		COM_KV(v, imports),
 		COM_KV(v, profile),
 		COM_KV(v, target)
 	);
@@ -103,7 +103,7 @@ bool deserialize(Value const &mas, ProjectModel &v)
 		COM_KV(v, email),
 		COM_KV(v, desc),
 		COM_KV(v, license),
-		COM_KV(v, import_dir),
+		COM_KV(v, imports),
 		COM_KV(v, profile),
 		COM_KV(v, target)
 	);

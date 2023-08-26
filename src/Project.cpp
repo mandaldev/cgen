@@ -112,7 +112,7 @@ Pkgconf *Project::pkgconf()
 bool Project::load(ProjectModel const &project)
 {
 	_pm = project;
-	_import_dir = _pm.import_dir;
+	_import_dir = _pm.imports;
 	for (auto &p : _import_dir) {
 		p /= "share";
 		p /= "cgen";
