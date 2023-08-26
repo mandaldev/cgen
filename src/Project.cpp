@@ -181,7 +181,16 @@ bool Project::install_target(std::string const &profile, std::filesystem::path c
 	if (!build_target(profile, target_name)) {
 		return false;
 	}
-	return _targets[target_name]->install(prefix, profile);
+	auto target = _targets[target_name];
+	if (target->type() != TargetType::Executable) {
+		for (auto d : target->dep()) {
+			auto it = _targets.find(d);
+			if (it != _targets.end()) {
+				it->second->install(prefix, profile);
+			}
+		}
+	}
+	return target->install(prefix, profile);
 }
 
 bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const
