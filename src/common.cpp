@@ -25,16 +25,17 @@ std::vector<std::filesystem::path> const &cgen_data_dirs()
 {
 	std::call_once(g_data_dirs_of, []()
 	{
-		std::vector<std::filesystem::path> dirs;
 		std::filesystem::path home = getenv("HOME");
 		if (!home.empty()) {
-			dirs.push_back(home / ".cgen");
-			dirs.push_back(home / ".local/share/cgen");
+			g_data_dirs.push_back(home / ".cgen");
+			g_data_dirs.push_back(home / ".local/share/cgen");
 		}
 		auto p = Com::exec_install_prefix();
 		if (!p.empty()) {
-			dirs.push_back(p / "share/cgen");
+			g_data_dirs.push_back(p / "share/cgen");
 		}
+		g_data_dirs.push_back("/usr/local/share/cgen");
+		g_data_dirs.push_back("/usr/share/cgen");
 	});
 	return g_data_dirs;
 }
