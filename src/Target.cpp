@@ -375,8 +375,8 @@ std::filesystem::path Target::exports(std::filesystem::path const &prefix) const
 		return {};
 	}
 	auto tm = _tm;
-	tm.extra_cflags = "-I" + (prefix / "include").string() + " " + tm.extra_cflags;
-	tm.extra_lflags = "-L" + (prefix / "lib").string() + " " + tm.extra_lflags;
+	tm.extra_cflags = Com::join(" ", "-I" + (prefix / "include").string(), tm.extra_cflags);
+	tm.extra_lflags = Com::join(" ", "-l" + tm.name + " -L" + (prefix / "lib").string(), tm.extra_lflags);
 	auto mas = Com::Mas::serialize_kvs(
 		COM_KV(tm, name),
 		COM_KV(tm, language),
