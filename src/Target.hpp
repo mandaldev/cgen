@@ -1,22 +1,21 @@
 #ifndef MAS_SRC_TARGET_HPP
 #define MAS_SRC_TARGET_HPP
-#include <Com/Mas/Value.hpp>
 #include "common.hpp"
 #include "Cdb.hpp"
+#include "ProjectModel.hpp"
+#include "pkgconf/pkgconf.hpp"
 #include <set>
 #include <optional>
 #include <memory>
 #include <filesystem>
 #include <functional>
-#include "ProjectModel.hpp"
-
-class Project;
+#include <Com/Mas/Value.hpp>
+#include <Com/raii.hpp>
 
 /// a cgen target
 class Target
+: public Com::Unique
 {
-	Project *_project = nullptr;
-
 	ProjectModel::TargetModel _tm;
 
 	TargetType _type = TargetType::None;
@@ -32,7 +31,7 @@ class Target
 	/// resolved deps
 	std::vector<std::string> _dep;
 
-	bool load_pkgconfs();
+	bool _phony_applyed = false;
 
 	void load_installs();
 
@@ -45,22 +44,24 @@ class Target
 
 	void append(std::shared_ptr<Target> target);
 
-	std::shared_ptr<Target> import_target(std::map<std::string, std::shared_ptr<Target>> &imports, std::string const &name);
+	std::shared_ptr<Target> import_target(
+		std::vector<std::filesystem::path> import_dirs,
+		std::map<std::string, std::shared_ptr<Target>> &imports,
+		std::string const &name
+	);
 
 	/// export this target only: not include its indirect dep and pkgconf
 	std::filesystem::path exports(std::filesystem::path const &prefix) const;
 
 public:
-	Target(Project *project);
-	Target(Target const &) = delete;
-	Target &operator=(Target const &) = delete;
-
-	/// load target data from mas
-	bool load(std::string const &name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir = "");
+	/// load target data from model
+	bool load(std::string const &name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir = "");
 
 	std::string name() const;
 
 	TargetType type() const;
+
+	ProjectModel::TargetModel const &model() const;
 
 	std::vector<std::string> dep() const;
 
@@ -70,17 +71,22 @@ public:
 	/// from pkgconf and extras
 	std::string external_lflags() const;
 
+	bool load_pkgconfs(Pkgconf &pkgconf);
+
 	/// resolve deps
 	bool resolve_deps(
 		std::map<std::string, std::shared_ptr<Target>> const &all_targets,
+		std::vector<std::filesystem::path> import_dirs,
 		std::map<std::string, std::shared_ptr<Target>> &imports
 	);
 
 	/// generate build scripts
-	bool gen(std::string const &profile, std::map<std::string, std::shared_ptr<Target>> const &imports, std::optional<Cdb> &opt_cdb) const;
+	bool gen(std::string const &profile, std::map<std::string, std::shared_ptr<Target>> const &targets, std::map<std::string, std::shared_ptr<Target>> const &imports, std::optional<Cdb> &opt_cdb) const;
 
 	/// apply templates
 	bool apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates);
+
+	bool apply_phonys(std::map<std::string, std::shared_ptr<Target>> const &all_phonys);
 
 	/// install target files
 	bool install(std::filesystem::path const &prefix, std::string const &profile) const;

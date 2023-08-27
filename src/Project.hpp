@@ -6,14 +6,15 @@
 
 /// a cgen project
 class Project
+: public Com::Unique
 {
 	std::string _project_cached;
 
 	ProjectModel _pm;
-	std::vector<std::filesystem::path> _import_dir;
+	std::vector<std::filesystem::path> _import_dirs;
 	std::map<std::string, ProjectModel::Profile> _profile;
 
-	std::map<std::string, std::shared_ptr<Target>> _targets, _templates, _imports;
+	std::map<std::string, std::shared_ptr<Target>> _targets, _templates, _phonys, _imports;
 
 	Pkgconf _pkgconf;
 
@@ -24,25 +25,21 @@ class Project
 
 	void setup_default_profiles();
 
-	bool load_target(std::string const &target_name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir);
+	bool load_target(std::string const &target_name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir);
 
 	// visit
-	bool load_target(std::string const &target_name, ProjectModel::TargetModel &tm, ProjectModel::Target &variant);
+	bool load_target(std::string const &target_name, ProjectModel::TargetModel const &tm);
 
 	// visit
-	bool load_target(std::string const &target_name, std::string const &include, ProjectModel::Target &variant);
+	bool load_target(std::string const &target_name, std::string const &include);
 
 	// visit
-	bool load_targets(ProjectModel::TargetMap &targets);
+	bool load_targets(ProjectModel::TargetMap const &targets);
 
 	// visit
-	bool load_targets(ProjectModel::TargetArray &targets);
+	bool load_targets(ProjectModel::TargetArray const &targets);
 
 public:
-	Project() = default;
-	Project(Project const &) = delete;
-	Project &operator=(Project const &) = delete;
-
 	std::string const &name() const;
 
 	std::string const &author() const;

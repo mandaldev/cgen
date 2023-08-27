@@ -25,20 +25,15 @@ static void load_and_fix_paths(std::set<std::filesystem::path> &paths, std::file
 	}
 }
 
-Target::Target(Project *project)
-: _project(project)
-{
-}
-
-bool Target::load_pkgconfs()
+bool Target::load_pkgconfs(Pkgconf &pkgconf)
 {
 	for (auto &p : _tm.pkgconf) {
-		if (!_project->pkgconf()->find(p)) {
+		if (!pkgconf.find(p)) {
 			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg\n";
 			return false;
 		}
-		_pkg_cflags += " " + _project->pkgconf()->cflags(p);
-		_pkg_lflags += " " + _project->pkgconf()->libs(p);
+		_pkg_cflags += " " + pkgconf.cflags(p);
+		_pkg_lflags += " " + pkgconf.libs(p);
 	}
 	return true;
 }
@@ -51,7 +46,7 @@ void Target::load_installs()
 	}
 }
 
-bool Target::load(std::string const &name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir)
+bool Target::load(std::string const &name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir)
 {
 	_tm = tm;
 	if (name.size()) {
@@ -84,8 +79,7 @@ bool Target::load(std::string const &name, ProjectModel::TargetModel &tm, std::f
 	load_and_fix_paths(_tm.src, _basedir);
 
 	load_installs();
-	tm = _tm;
-	return load_pkgconfs();
+	return true;
 }
 
 std::string Target::name() const
@@ -98,6 +92,11 @@ TargetType Target::type() const
 	return _type;
 }
 
+ProjectModel::TargetModel const &Target::model() const
+{
+	return _tm;
+}
+
 std::vector<std::string> Target::dep() const
 {
 	return _dep;
@@ -105,6 +104,7 @@ std::vector<std::string> Target::dep() const
 
 bool Target::resolve_deps(
 	std::map<std::string, std::shared_ptr<Target>> const &all_targets,
+	std::vector<std::filesystem::path> import_dirs,
 	std::map<std::string, std::shared_ptr<Target>> &imports
 )
 {
@@ -117,13 +117,13 @@ bool Target::resolve_deps(
 		std::vector<std::string> indirects;
 		auto it = all_targets.find(d);
 		if (it == all_targets.end()) {
-			if (auto dep = import_target(imports, d)) {
+			if (auto dep = import_target(import_dirs, imports, d)) {
 				indirects = dep->dep();
 			} else {
 				std::cerr << "Error: failed to resolve dep of '" << d << "'\n";
 				return false;
 			}
-		} else if (it->second->resolve_deps(all_targets, imports)) {
+		} else if (it->second->resolve_deps(all_targets, import_dirs, imports)) {
 			indirects = it->second->dep();
 		} else {
 			return false;
@@ -133,7 +133,12 @@ bool Target::resolve_deps(
 	return true;
 }
 
-bool Target::gen(std::string const &profile, std::map<std::string, std::shared_ptr<Target>> const &imports, std::optional<Cdb> &opt_cdb) const
+bool Target::gen(
+	std::string const &profile,
+	std::map<std::string, std::shared_ptr<Target>> const &targets,
+	std::map<std::string, std::shared_ptr<Target>> const &imports,
+	std::optional<Cdb> &opt_cdb
+) const
 {
 	switch (_type) {
 	case TargetType::Executable:
@@ -162,8 +167,8 @@ bool Target::gen(std::string const &profile, std::map<std::string, std::shared_p
 
 	std::vector<std::pair<bool, std::string>> deps;
 	for (auto &d : _dep) {
-		auto it = _project->targets().find(d);
-		if (it != _project->targets().end()) {
+		auto it = targets.find(d);
+		if (it != targets.end()) {
 			if (it->second->type() != TargetType::Phony) {
 				deps.push_back({it->second->type() == TargetType::StaticLibrary, d});
 			}
@@ -247,17 +252,19 @@ void Target::append(std::shared_ptr<Target> target)
 	_tm.pkgconf.insert(_tm.pkgconf.begin(), target->_tm.pkgconf.begin(), target->_tm.pkgconf.end());
 	_tm.extra_cflags = target->_tm.extra_cflags + _tm.extra_cflags;
 	_tm.extra_lflags = target->_tm.extra_lflags + _tm.extra_lflags;
-	_pkg_cflags = target->_pkg_cflags + _pkg_cflags;
-	_pkg_lflags = target->_pkg_lflags + _pkg_lflags;
 }
 
-std::shared_ptr<Target> Target::import_target(std::map<std::string, std::shared_ptr<Target>> &imports, std::string const &name)
+std::shared_ptr<Target> Target::import_target(
+	std::vector<std::filesystem::path> import_dirs,
+	std::map<std::string, std::shared_ptr<Target>> &imports,
+	std::string const &name
+)
 {
 	auto it = imports.find(name);
 	if (it != imports.end()) {
 		return it->second;
 	}
-	auto text = load_runtime_file(_project->import_dirs(), INSTALLED_FOLDER / (name + ".mas"));
+	auto text = load_runtime_file(import_dirs, INSTALLED_FOLDER / (name + ".mas"));
 	if (text.empty()) {
 		std::cerr << "Error: external dep not found: " << name << '\n';
 		return {};
@@ -267,12 +274,12 @@ std::shared_ptr<Target> Target::import_target(std::map<std::string, std::shared_
 		std::cerr << "Error: failed to load external dep: " << name << '\n';
 		return {};
 	}
-	auto target = std::make_shared<Target>(_project);
+	auto target = std::make_shared<Target>();
 	if (!target->load("", tm)) {
 		std::cerr << "Error: failed to load external dep: " << name << '\n';
 		return {};
 	}
-	if (!target->resolve_deps({}, imports)) {
+	if (!target->resolve_deps({}, import_dirs, imports)) {
 		return {};
 	}
 	imports[target->name()] = target;
@@ -312,6 +319,31 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 	return true;
 }
 
+bool Target::apply_phonys(std::map<std::string, std::shared_ptr<Target>> const &all_phonys)
+{
+	if (_phony_applyed) {
+		return true;
+	}
+	_phony_applyed = true;
+	std::vector<std::string> dep;
+	for (auto &d : _tm.dep) {
+		if (auto it = all_phonys.find(d); it != all_phonys.end()) {
+			if (!it->second->apply_phonys(all_phonys)) {
+				return false;
+			}
+			auto &indirect = it->second->_tm;
+			dep.insert(dep.end(), indirect.dep.begin(), indirect.dep.end());
+			_tm.pkgconf.insert(_tm.pkgconf.end(), indirect.pkgconf.begin(), indirect.pkgconf.end());
+			_tm.extra_cflags = Com::join(" ", _tm.extra_cflags, indirect.extra_cflags);
+			_tm.extra_lflags = Com::join(" ", _tm.extra_lflags, indirect.extra_lflags);
+		} else {
+			dep.push_back(d);
+		}
+	}
+	_tm.dep = std::move(dep);
+	return true;
+}
+
 static std::filesystem::path install_file(std::filesystem::path const &p, std::filesystem::path const &dir)
 {
 	std::error_code ec{};
@@ -330,6 +362,7 @@ static std::filesystem::path install_file(std::filesystem::path const &p, std::f
 	return dst;
 }
 
+// TODO uninstall first
 bool Target::install(std::filesystem::path const &prefix, std::string const &profile) const
 {
 	std::vector<std::filesystem::path> installed;

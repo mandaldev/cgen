@@ -7,15 +7,15 @@
 #include <filesystem>
 #include <cassert>
 
-bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel &tm, std::filesystem::path const &basedir)
+bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir)
 {
-	auto target = std::make_shared<Target>(this);
+	auto target = std::make_shared<Target>();
 	if (!target->load(target_name, tm, basedir)) {
 		std::cerr << "Load target failed\n";
 		return false;
 	}
 	auto name = target->name();
-	auto &dst = target->type() == TargetType::Template ? _templates : _targets;
+	auto &dst = target->type() == TargetType::Template ? _templates : (target->type() == TargetType::Phony ? _phonys : _targets);
 	if (name.length()) {
 		if (!dst.count(name)) {
 			dst.insert({target->name(), target});
@@ -29,12 +29,12 @@ bool Project::load_target(std::string const &target_name, ProjectModel::TargetMo
 	return false;
 }
 
-bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel &tm, ProjectModel::Target &variant)
+bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel const &tm)
 {
 	return load_target(target_name, tm, "");
 }
 
-bool Project::load_target(std::string const &target_name, std::string const &include, ProjectModel::Target &variant)
+bool Project::load_target(std::string const &target_name, std::string const &include)
 {
 	if (include.empty()) {
 		std::cerr << "member of 'target' must be empty string\n";
@@ -52,17 +52,16 @@ bool Project::load_target(std::string const &target_name, std::string const &inc
 		std::cerr << "Error: must be a map: " << path << '\n';
 		return false;
 	}
-	variant = tm;
 	return load_target(target_name, tm, path.parent_path());
 }
 
-bool Project::load_targets(ProjectModel::TargetMap &targets)
+bool Project::load_targets(ProjectModel::TargetMap const &targets)
 {
 	for (auto &p : targets) {
 		auto ret = std::visit(
 			[this, &p](auto &tm)
 			{
-				return load_target(p.first, tm, p.second);
+				return load_target(p.first, tm);
 			},
 			p.second
 		);
@@ -73,13 +72,13 @@ bool Project::load_targets(ProjectModel::TargetMap &targets)
 	return true;
 }
 
-bool Project::load_targets(ProjectModel::TargetArray &targets)
+bool Project::load_targets(ProjectModel::TargetArray const &targets)
 {
 	for (auto &target : targets) {
 		auto ret = std::visit(
 			[this, &target](auto &tm)
 			{
-				return load_target("", tm, target);
+				return load_target("", tm);
 			},
 			target
 		);
@@ -112,14 +111,14 @@ Pkgconf *Project::pkgconf()
 bool Project::load(ProjectModel const &project)
 {
 	_pm = project;
-	_import_dir = _pm.imports;
-	for (auto &p : _import_dir) {
+	_import_dirs = _pm.imports;
+	for (auto &p : _import_dirs) {
 		p /= "share";
 		p /= "cgen";
 	}
 	{
 		auto dirs = cgen_data_dirs();
-		_import_dir.insert(_import_dir.end(), dirs.begin(), dirs.end());
+		_import_dirs.insert(_import_dirs.end(), dirs.begin(), dirs.end());
 	}
 
 	setup_default_profiles();
@@ -139,10 +138,26 @@ bool Project::load(ProjectModel const &project)
 			return false;
 		}
 	}
+	for (auto &&[name, target] : _targets) {
+		if (!target->apply_phonys(_phonys)) {
+			return false;
+		}
+	}
+	{
+		ProjectModel::TargetArray tms;
+		tms.reserve(_targets.size());
+		for (auto &&[name, target] : _targets) {
+			tms.push_back(target->model());
+		}
+		_pm.target = std::move(tms);
+	}
 	_project_cached = Com::Mas::encode(Com::Mas::serialize(_pm));
 
 	for (auto &&[name, target] : _targets) {
-		if (!target->resolve_deps(_targets, _imports)) {
+		if (!target->load_pkgconfs(_pkgconf)) {
+			return false;
+		}
+		if (!target->resolve_deps(_targets, _import_dirs, _imports)) {
 			return false;
 		}
 	}
@@ -242,7 +257,7 @@ bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> t
 			return false;
 		}
 	}
-	return target->gen(profile, _imports, opt_cdb);
+	return target->gen(profile, _targets, _imports, opt_cdb);
 }
 
 void Project::setup_default_profiles()
@@ -283,7 +298,7 @@ std::string const &Project::desc() const
 
 std::vector<std::filesystem::path> const &Project::import_dirs() const
 {
-	return _import_dir;
+	return _import_dirs;
 }
 
 bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) const
