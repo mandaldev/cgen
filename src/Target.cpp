@@ -362,9 +362,41 @@ static std::filesystem::path install_file(std::filesystem::path const &p, std::f
 	return dst;
 }
 
-// TODO uninstall first
+static bool uninstall_list(std::filesystem::path const &p)
+{
+	auto opt = Com::load_mas_file(p);
+	if (!opt) {
+		std::cerr << "Error: [UNINSTALL] unable to load list file: " << p << "\n";
+		return false;
+	}
+	std::vector<std::filesystem::path> paths;
+	if (!Com::Mas::deserialize(opt.value(), paths)) {
+		std::cerr << "Error: [UNINSTALL] not a valid list file: " << p << "\n";
+		return false;
+	}
+	for (auto const &p : paths) {
+		std::error_code ec;
+		std::filesystem::remove(p, ec);
+		if (ec) {
+			std::cerr << "Error: [UNINSTALL] failed to remove file: " << p << "\n";
+			return false;
+		}
+	}
+	std::cerr << "[UNINSTALL] " << p << " uninstalled.\n";
+	return true;
+}
+
 bool Target::install(std::filesystem::path const &prefix, std::string const &profile) const
 {
+	std::error_code ec;
+	auto list_file_path = prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".list");
+	// uninstall first
+	if (std::filesystem::exists(list_file_path, ec)) {
+		if (!uninstall_list(list_file_path)) {
+			return false;
+		}
+	}
+
 	std::vector<std::filesystem::path> installed;
 	auto target_file = target_file_name(_tm.name, _type);
 	if (!target_file.empty()) {
@@ -395,7 +427,7 @@ bool Target::install(std::filesystem::path const &prefix, std::string const &pro
 		return false;
 	}
 	installed.push_back(dst);
-	installed.push_back(prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".list"));
+	installed.push_back(list_file_path);
 	if (!Com::save_pretty_mas_file(installed.back(), Com::Mas::serialize(installed))) {
 		return false;
 	}
