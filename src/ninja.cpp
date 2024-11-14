@@ -5,6 +5,8 @@
 #include <fstream>
 #include <filesystem>
 
+using namespace std::literals;
+
 static std::string gen_ninja_rules()
 {
 	std::string rules;

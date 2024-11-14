@@ -1,9 +1,10 @@
 #include "pkgconf.hpp"
-#include "../common.hpp"
 #include <Com/string.hpp>
 #include <iostream>
 #include <cassert>
 #include <functional>
+
+using namespace std::literals;
 
 bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, const void *data)
 {

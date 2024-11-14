@@ -1,5 +1,4 @@
 #include "Cdb.hpp"
-#include "common.hpp"
 #include <Com/string.hpp>
 #include <iostream>
 #include <fstream>
@@ -20,7 +19,7 @@ struct CompileCommand
 
 	std::string encode() const
 	{
-		auto out = "{\"arguments\":["s;
+		std::string out = "{\"arguments\":[";
 		assert(arguments.size());
 		for (auto &arg : arguments) {
 			assert(arg.size());

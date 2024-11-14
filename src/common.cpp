@@ -15,6 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
 #include <Com/file.hpp>
+#include <Com/Xo/exec.hpp>
 #include <mutex>
 #include <iostream>
 

@@ -1,14 +1,8 @@
 #ifndef MAS_SRC_COMMON_HPP
 #define MAS_SRC_COMMON_HPP
 #include <string>
-#include <cctype>
-#include <algorithm>
-#include <ctime>
-#include <locale>
 #include <filesystem>
-#include <Com/Xo/exec.hpp>
-
-using namespace std::literals;
+#include <vector>
 
 enum class TargetType {
 	None,

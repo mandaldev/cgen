@@ -1,12 +1,10 @@
 #include "Target.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
-#include "Project.hpp"
 #include <Com/string.hpp>
 #include <Com/file.hpp>
 #include <Com/Mas/serialize.hpp>
 #include <iostream>
-#include <fstream>
 #include <filesystem>
 
 static const auto LANG_C = "c";
@@ -29,7 +27,7 @@ bool Target::load_pkgconfs(Pkgconf &pkgconf)
 {
 	for (auto &p : _tm.pkgconf) {
 		if (!pkgconf.find(p)) {
-			std::cerr << "Error: pkg-config for " << p << "failed: can't find pkg\n";
+			std::cerr << "Error: pkg-config for '" << p << "' failed: can't find pkg\n";
 			return false;
 		}
 		_pkg_cflags += " " + pkgconf.cflags(p);

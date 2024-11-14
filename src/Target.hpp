@@ -4,7 +4,6 @@
 #include "Cdb.hpp"
 #include "ProjectModel.hpp"
 #include "pkgconf/pkgconf.hpp"
-#include <set>
 #include <optional>
 #include <memory>
 #include <filesystem>

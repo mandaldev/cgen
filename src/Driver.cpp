@@ -5,6 +5,8 @@
 #include <Com/file.hpp>
 #include <Com/Date.hpp>
 #include <sstream>
+#include <fstream>
+#include <iostream>
 
 static std::string to_valid_fence_string(std::string const &str)
 {
