@@ -10,7 +10,7 @@
 
 static std::string to_valid_fence_string(std::string const &str)
 {
-	auto fence = '_' + str + '_';
+	auto fence = str;
 	for (auto &c : fence) {
 		c = std::toupper(c);
 		switch (c) {
