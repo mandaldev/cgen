@@ -109,9 +109,11 @@ bool gen_ninja_target_build(
 				// error
 			}
 		}
-		auto s = p.string();
-		script += "build " + s + ".o: " + NINJA_RULE_COMPILE + " ../../" + s + "\n";
-		obj_list += s + ".o ";
+		auto out = p.string();
+		auto abs_path = std::filesystem::current_path() / "build" / profile / "../../" / p;
+		auto in = abs_path.string();
+		script += "build " + out + ".o: " + NINJA_RULE_COMPILE + " " + in + "\n";
+		obj_list += out + ".o ";
 	}
 	script += "build " + out_name + ": " + link_rule + " " + obj_list;
 	if (has_implicit) {
