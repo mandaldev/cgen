@@ -1,9 +1,9 @@
 #ifndef CGEN_SRC_CDB_H
 #define CGEN_SRC_CDB_H
-#include <vector>
-#include <string>
-#include <set>
 #include <filesystem>
+#include <set>
+#include <string>
+#include <vector>
 
 /// compilation database item
 struct CdbItem

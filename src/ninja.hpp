@@ -1,10 +1,10 @@
 #ifndef MAS_SRC_NINJA_H
 #define MAS_SRC_NINJA_H
+#include "common.hpp"
+#include <filesystem>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
-#include <filesystem>
-#include "common.hpp"
 
 /// common things about 'build':
 ///

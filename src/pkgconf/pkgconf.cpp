@@ -1,8 +1,8 @@
 #include "pkgconf.hpp"
 #include <Com/string.hpp>
-#include <iostream>
 #include <cassert>
 #include <functional>
+#include <iostream>
 
 using namespace std::literals;
 

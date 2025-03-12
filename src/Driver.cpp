@@ -1,18 +1,18 @@
 #include "Driver.hpp"
-#include "help.hpp"
 #include "common.hpp"
+#include "help.hpp"
+#include <Com/Date.hpp>
 #include <Com/Xo/exec.hpp>
 #include <Com/file.hpp>
-#include <Com/Date.hpp>
-#include <sstream>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
 static std::string to_valid_fence_string(std::string const &str)
 {
 	auto fence = str;
 	for (auto &c : fence) {
-		c = std::toupper(c);
+		c = (char)std::toupper(c);
 		switch (c) {
 		case 'A' ... 'Z':
 		case '0' ... '9':
@@ -124,7 +124,7 @@ static std::filesystem::path validate_file_path(std::filesystem::path const &dir
 static bool write_file(std::filesystem::path const &path, std::string const &buf)
 {
 	std::ofstream ofs(path);
-	if (!ofs.write(buf.data(), buf.size())) {
+	if (!ofs.write(buf.data(), (std::streamsize)buf.size())) {
 		std::cerr << "Error: failed to write file: " << path << '\n';
 		return false;
 	}

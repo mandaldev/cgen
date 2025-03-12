@@ -1,11 +1,11 @@
 #include "Target.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
-#include <Com/string.hpp>
-#include <Com/file.hpp>
 #include <Com/Mas/serialize.hpp>
-#include <iostream>
+#include <Com/file.hpp>
+#include <Com/string.hpp>
 #include <filesystem>
+#include <iostream>
 
 static const auto LANG_C = "c";
 static const auto LANG_CPP = "c++";
@@ -192,8 +192,8 @@ bool Target::gen(
 		_tm.name,
 		_tm.src,
 		deps,
-		Com::join(" ", cflags),
-		Com::join(" ", lflags)
+		cflag,
+		lflag
 	);
 }
 

@@ -1,10 +1,10 @@
 #include "Cdb.hpp"
 #include <Com/string.hpp>
-#include <iostream>
-#include <fstream>
-#include <filesystem>
-#include <vector>
 #include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <vector>
 
 static inline std::string quote_string(std::string const &str)
 {

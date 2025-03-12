@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "common.hpp"
-#include <Com/file.hpp>
 #include <Com/Xo/exec.hpp>
-#include <mutex>
+#include <Com/file.hpp>
 #include <iostream>
+#include <mutex>
 
 static std::once_flag g_data_dirs_of;
 static std::vector<std::filesystem::path> g_data_dirs;

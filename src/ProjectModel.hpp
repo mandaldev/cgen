@@ -13,13 +13,13 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#ifndef _CGEN_SRC_PROJECTMODEL_HPP_
-#define _CGEN_SRC_PROJECTMODEL_HPP_
-#include <string>
+#ifndef CGEN_SRC_PROJECTMODEL_HPP_
+#define CGEN_SRC_PROJECTMODEL_HPP_
+#include <Com/Mas/serialize.hpp>
 #include <map>
 #include <set>
+#include <string>
 #include <vector>
-#include <Com/Mas/serialize.hpp>
 
 struct ProjectModel
 {

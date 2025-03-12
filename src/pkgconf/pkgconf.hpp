@@ -1,10 +1,10 @@
 #ifndef CGEN_SRC_PKHCONF_PKGCONF_HPP
 #define CGEN_SRC_PKHCONF_PKGCONF_HPP
 #include <libpkgconf/libpkgconf.h>
-#include <string>
-#include <vector>
 #include <map>
 #include <set>
+#include <string>
+#include <vector>
 
 /// Wrapper of libpkgconf.
 /// Call `find` first to check if a pkg exists, since `cflags` and `libs`

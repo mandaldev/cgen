@@ -2,10 +2,10 @@
 #include "common.hpp"
 #include "ninja.hpp"
 #include <Com/file.hpp>
-#include <iostream>
-#include <fstream>
-#include <filesystem>
 #include <cassert>
+#include <filesystem>
+#include <fstream>
+#include <iostream>
 
 bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir)
 {

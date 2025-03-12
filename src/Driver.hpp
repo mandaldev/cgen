@@ -1,10 +1,10 @@
 #ifndef MAS_SRC_DRIVER_HPP
 #define MAS_SRC_DRIVER_HPP
+#include "Project.hpp"
+#include <Com/Xo/CommandLine.hpp>
 #include <cassert>
 #include <filesystem>
 #include <functional>
-#include <Com/Xo/CommandLine.hpp>
-#include "Project.hpp"
 
 /// Command driver
 class Driver

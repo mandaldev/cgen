@@ -1,7 +1,7 @@
 #ifndef MAS_SRC_COMMON_HPP
 #define MAS_SRC_COMMON_HPP
-#include <string>
 #include <filesystem>
+#include <string>
 #include <vector>
 
 enum class TargetType {

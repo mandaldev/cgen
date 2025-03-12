@@ -1,9 +1,9 @@
 #include "ninja.hpp"
 #include "common.hpp"
 #include <Com/string.hpp>
-#include <iostream>
-#include <fstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 
 using namespace std::literals;
 
