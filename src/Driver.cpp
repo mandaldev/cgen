@@ -329,7 +329,7 @@ bool Driver::gen_project(std::string const &name)
 	auto std = _cmdline.get_switch("std").value_or("c++17");
 	auto type = _cmdline.get_switch("type").value_or("exe");
 	if (type != "exe" && type != "slib" && type != "dlib") {
-		std::cerr << "Error: wrong 'target' type, only 'bin', 'slib' or 'dlib' supported!\n";
+		std::cerr << "Error: wrong 'target' type, only 'exe', 'slib' or 'dlib' supported!\n";
 		return false;
 	}
 	struct Files
