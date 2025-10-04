@@ -76,10 +76,7 @@ bool Project::load_targets(ProjectModel::TargetArray const &targets)
 {
 	for (auto &target : targets) {
 		auto ret = std::visit(
-			[this, &target](auto &tm)
-			{
-				return load_target("", tm);
-			},
+			[this](auto &tm) { return load_target("", tm); },
 			target
 		);
 		if (!ret) {
