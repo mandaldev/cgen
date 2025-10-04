@@ -33,11 +33,13 @@ static std::string gen_ninja_rules()
 
 std::string gen_ninja_build(
 	std::string const &cflags,
+	std::string const &lflags,
 	std::set<std::string> const &subninja_names
 )
 {
 	std::string build;
-	build += NINJA_GLOBAL_CFLAGS + " = "s + cflags + "\n\n";
+	build += NINJA_GLOBAL_CFLAGS + " = "s + cflags + "\n";
+	build += NINJA_GLOBAL_LFLAGS + " = "s + lflags + "\n\n";
 	build += gen_ninja_rules();
 	for (auto &name : subninja_names) {
 		build += "subninja " + name + NINJA_BUILD_EXT + "\n";

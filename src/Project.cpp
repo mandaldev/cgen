@@ -323,7 +323,7 @@ bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) 
 			}
 		}
 	}
-	auto script = gen_ninja_build(profile.cflags, generated);
+	auto script = gen_ninja_build(profile.cflags, profile.cflags, generated);
 
 	std::ofstream fs;
 	std::string fname = "./build/" + profile_name + '/' + NINJA_BUILD;

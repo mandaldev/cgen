@@ -55,6 +55,7 @@ static constexpr auto NINJA_RULE_LINK_DLIB = "link_dlib";
 /// `subninja_names`: target names
 std::string gen_ninja_build(
 	std::string const &cflags,
+	std::string const &lflags,
 	std::set<std::string> const &subninja_names
 );
 
