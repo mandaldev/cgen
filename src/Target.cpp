@@ -176,7 +176,7 @@ bool Target::gen(
 		cflags.push_back(it->second->external_cflags());
 		lflags.push_back(it->second->external_lflags());
 	}
-	auto cflag = Com::join(" ", cflags);
+	auto cflag = filter_cflags(cflags);
 	auto lflag = Com::join(" ", lflags);
 	if (opt_cdb) {
 		CdbItem item;

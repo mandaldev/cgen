@@ -1,9 +1,13 @@
 #include "ninja.hpp"
 #include "common.hpp"
 #include <Com/string.hpp>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
+#include <string_view>
+#include <vector>
 
 using namespace std::literals;
 
@@ -47,6 +51,56 @@ std::string gen_ninja_build(
 	return build;
 }
 
+std::string filter_cflags(std::vector<std::string> const &flags)
+{
+	auto flag_str = Com::join(" ", flags);
+	std::set<std::string_view> includes;
+	std::vector<std::string_view> others;
+	for (auto flag : Com::split(std::string_view(flag_str), " ")) {
+		if (flag.size() > 2 && flag.substr(0, 2) == "-I") {
+			includes.insert(flag);
+		} else {
+			others.push_back(flag);
+		}
+	}
+	return Com::join(" ", Com::join(" ", others), Com::join(" ", includes));
+}
+
+static std::string filter_lflags(std::vector<std::string> const &flags)
+{
+	auto flag_str = Com::join(" ", flags);
+	std::map<std::string_view, size_t> libs_indices;
+	std::set<std::string_view> dirs;
+	std::vector<std::string_view> libs, others;
+	size_t i = 0;
+	for (auto flag : Com::split(std::string_view(flag_str), " ")) {
+		if (flag.size() > 2 && flag.substr(0, 2) == "-l") {
+			libs_indices[flag] = i;
+		} else if (flag.size() > 2 && flag.substr(0, 2) == "-L") {
+			dirs.insert(flag);
+		} else {
+			others.push_back(flag);
+		}
+		i += 1;
+	}
+	std::map<size_t, std::string_view> indiced_libs;
+	for (auto const &[lib, i] : libs_indices) {
+		indiced_libs[i] = lib;
+	}
+	for (auto const &[i, lib] : indiced_libs) {
+		libs.push_back(lib);
+	}
+	return Com::join(
+		" ",
+		Com::join(" ", others),
+		Com::join(
+			" ",
+			Com::join(" ", libs),
+			Com::join(" ", dirs)
+		)
+	);
+}
+
 bool gen_ninja_target_build(
 	std::string const &profile, // debug or release
 	std::string const &cc,
@@ -65,14 +119,22 @@ bool gen_ninja_target_build(
 	if (dep.size()) {
 		deps_implicit = "|";
 		deps_order_only = " ||";
+		std::set<std::string> implicits;
+		std::set<std::string> order_onlys;
 		lflags.push_back("-L.");
 		for (auto &&[implicit, name] : dep) {
 			if (implicit) {
 				has_implicit = true;
-				deps_implicit += " _phony_" + name;
+				if (!implicits.count(name)) {
+					implicits.insert(name);
+					deps_implicit += " _phony_" + name;
+				}
 			} else {
 				has_order_only = true;
-				deps_order_only += " _phony_" + name;
+				if (!order_onlys.count(name)) {
+					order_onlys.insert(name);
+					deps_order_only += " _phony_" + name;
+				}
 			}
 			lflags.push_back("-l" + name);
 		}
@@ -97,8 +159,8 @@ bool gen_ninja_target_build(
 	lflags.push_back(extra_lflags);
 
 	std::string script;
-	script += Com::join(" ", "cflags = $"s + NINJA_GLOBAL_CFLAGS, Com::join(" ", cflags)) + "\n";
-	script += Com::join(" ", "lflags = $"s + NINJA_GLOBAL_LFLAGS, Com::join(" ", lflags)) + "\n";
+	script += Com::join(" ", "cflags = $"s + NINJA_GLOBAL_CFLAGS, filter_cflags(cflags)) + "\n";
+	script += Com::join(" ", "lflags = $"s + NINJA_GLOBAL_LFLAGS, filter_lflags(lflags)) + "\n";
 	script += "CC = " + cc + "\n";
 	script += "\n";
 

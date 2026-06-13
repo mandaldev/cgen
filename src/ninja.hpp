@@ -59,6 +59,8 @@ std::string gen_ninja_build(
 	std::set<std::string> const &subninja_names
 );
 
+std::string filter_cflags(std::vector<std::string> const &flags);
+
 /// generate build script for one target
 bool gen_ninja_target_build(
 	std::string const &profile, /// debug or release
