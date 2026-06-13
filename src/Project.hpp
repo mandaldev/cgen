@@ -11,7 +11,7 @@ class Project
 	std::string _project_cached;
 
 	ProjectModel _pm;
-	std::vector<std::filesystem::path> _import_dirs;
+	std::vector<std::filesystem::path> _data_dirs;
 	std::map<std::string, ProjectModel::Profile> _profile;
 
 	std::map<std::string, std::shared_ptr<Target>> _targets, _templates, _phonys, _imports;

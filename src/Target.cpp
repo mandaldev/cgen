@@ -6,6 +6,8 @@
 #include <Com/string.hpp>
 #include <filesystem>
 #include <iostream>
+#include <string>
+#include <vector>
 
 static const auto LANG_C = "c";
 static const auto LANG_CPP = "c++";
@@ -102,8 +104,9 @@ std::vector<std::string> Target::dep() const
 
 bool Target::resolve_deps(
 	std::map<std::string, std::shared_ptr<Target>> const &all_targets,
-	std::vector<std::filesystem::path> import_dirs,
-	std::map<std::string, std::shared_ptr<Target>> &imports
+	std::vector<std::filesystem::path> const &data_dirs,
+	std::map<std::string, std::shared_ptr<Target>> &imports,
+	Pkgconf &pkgconf
 )
 {
 	if (_deps_resolved) {
@@ -115,18 +118,21 @@ bool Target::resolve_deps(
 		std::vector<std::string> indirects;
 		auto it = all_targets.find(d);
 		if (it == all_targets.end()) {
-			if (auto dep = import_target(import_dirs, imports, d)) {
+			if (auto dep = import_target(data_dirs, imports, pkgconf, d)) {
 				indirects = dep->dep();
 			} else {
 				std::cerr << "Error: failed to resolve dep of '" << d << "'\n";
 				return false;
 			}
-		} else if (it->second->resolve_deps(all_targets, import_dirs, imports)) {
+		} else if (it->second->resolve_deps(all_targets, data_dirs, imports, pkgconf)) {
 			indirects = it->second->dep();
 		} else {
 			return false;
 		}
 		_dep.insert(_dep.end(), indirects.begin(), indirects.end());
+	}
+	if (!load_pkgconfs(pkgconf)) {
+		return false;
 	}
 	return true;
 }
@@ -135,6 +141,7 @@ bool Target::gen(
 	std::string const &profile,
 	std::map<std::string, std::shared_ptr<Target>> const &targets,
 	std::map<std::string, std::shared_ptr<Target>> const &imports,
+	std::vector<std::filesystem::path> const &import_dirs,
 	std::optional<Cdb> &opt_cdb
 ) const
 {
@@ -163,21 +170,25 @@ bool Target::gen(
 	cflags.push_back(external_cflags());
 	lflags.push_back(external_lflags());
 
-	std::vector<std::pair<bool, std::string>> deps;
+	/// 内部依赖项，只有内部的才会传入 ninja
+	std::vector<std::pair<bool, std::string>> inner_deps;
 	for (auto &d : _dep) {
 		auto it = targets.find(d);
 		if (it != targets.end()) {
-			if (it->second->type() != TargetType::Phony) {
-				deps.push_back({it->second->type() == TargetType::StaticLibrary, d});
-			}
+			inner_deps.push_back({it->second->type() == TargetType::StaticLibrary, d});
 		} else if (it = imports.find(d); it == imports.end()) {
 			continue;
 		}
+		// 外部依赖项
 		cflags.push_back(it->second->external_cflags());
-		lflags.push_back(it->second->external_lflags());
+		lflags.push_back("-l" + it->second->name() + " " + it->second->external_lflags());
+	}
+	for (auto &path : import_dirs) {
+		auto dir = path.string();
+		cflags.push_back("-I" + dir + "/include");
+		lflags.push_back("-L" + dir + "/lib");
 	}
 	auto cflag = filter_cflags(cflags);
-	auto lflag = Com::join(" ", lflags);
 	if (opt_cdb) {
 		CdbItem item;
 		item.cmd = cc;
@@ -191,9 +202,9 @@ bool Target::gen(
 		_type,
 		_tm.name,
 		_tm.src,
-		deps,
+		inner_deps,
 		cflag,
-		lflag
+		lflags
 	);
 }
 
@@ -253,8 +264,9 @@ void Target::append(std::shared_ptr<Target> target)
 }
 
 std::shared_ptr<Target> Target::import_target(
-	std::vector<std::filesystem::path> import_dirs,
+	std::vector<std::filesystem::path> const &data_dirs,
 	std::map<std::string, std::shared_ptr<Target>> &imports,
+	Pkgconf &pkgconf,
 	std::string const &name
 )
 {
@@ -262,7 +274,7 @@ std::shared_ptr<Target> Target::import_target(
 	if (it != imports.end()) {
 		return it->second;
 	}
-	auto text = load_runtime_file(import_dirs, INSTALLED_FOLDER / (name + ".mas"));
+	auto text = load_runtime_file(data_dirs, INSTALLED_FOLDER / (name + ".mas"));
 	if (text.empty()) {
 		std::cerr << "Error: external dep not found: " << name << '\n';
 		return {};
@@ -277,7 +289,7 @@ std::shared_ptr<Target> Target::import_target(
 		std::cerr << "Error: failed to load external dep: " << name << '\n';
 		return {};
 	}
-	if (!target->resolve_deps({}, import_dirs, imports)) {
+	if (!target->resolve_deps({}, data_dirs, imports, pkgconf)) {
 		return {};
 	}
 	imports[target->name()] = target;
@@ -437,8 +449,6 @@ std::filesystem::path Target::exports(std::filesystem::path const &prefix) const
 	auto tm = _tm;
 	Com::Mas::Value mas;
 	if (_type == TargetType::StaticLibrary || _type == TargetType::DynamicLibrary) {
-		tm.extra_cflags = Com::join(" ", "-I" + (prefix / "include").string(), tm.extra_cflags);
-		tm.extra_lflags = Com::join(" ", "-l" + tm.name + " -L" + (prefix / "lib").string(), tm.extra_lflags);
 		mas = Com::Mas::serialize_kvs(
 			COM_KV(tm, name),
 			COM_KV(tm, language),

@@ -109,7 +109,7 @@ bool gen_ninja_target_build(
 	std::set<std::filesystem::path> const &src,
 	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
 	std::string const &extra_cflags,
-	std::string const &extra_lflags
+	std::vector<std::string> const &extra_lflags
 )
 {
 	std::vector<std::string> cflags;
@@ -156,7 +156,7 @@ bool gen_ninja_target_build(
 		return false;
 	}
 	cflags.push_back(extra_cflags);
-	lflags.push_back(extra_lflags);
+	lflags.insert(lflags.end(), extra_lflags.begin(), extra_lflags.end());
 
 	std::string script;
 	script += Com::join(" ", "cflags = $"s + NINJA_GLOBAL_CFLAGS, filter_cflags(cflags)) + "\n";

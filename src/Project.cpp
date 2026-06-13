@@ -108,14 +108,14 @@ Pkgconf *Project::pkgconf()
 bool Project::load(ProjectModel const &project)
 {
 	_pm = project;
-	_import_dirs = _pm.imports;
-	for (auto &p : _import_dirs) {
+	_data_dirs = _pm.imports;
+	for (auto &p : _data_dirs) {
 		p /= "share";
 		p /= "cgen";
 	}
 	{
 		auto dirs = cgen_data_dirs();
-		_import_dirs.insert(_import_dirs.end(), dirs.begin(), dirs.end());
+		_data_dirs.insert(_data_dirs.end(), dirs.begin(), dirs.end());
 	}
 
 	setup_default_profiles();
@@ -151,10 +151,7 @@ bool Project::load(ProjectModel const &project)
 	_project_cached = Com::Mas::encode(Com::Mas::serialize(_pm));
 
 	for (auto &&[name, target] : _targets) {
-		if (!target->load_pkgconfs(_pkgconf)) {
-			return false;
-		}
-		if (!target->resolve_deps(_targets, _import_dirs, _imports)) {
+		if (!target->resolve_deps(_targets, _data_dirs, _imports, _pkgconf)) {
 			return false;
 		}
 	}
@@ -254,7 +251,7 @@ bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> t
 			return false;
 		}
 	}
-	return target->gen(profile, _targets, _imports, opt_cdb);
+	return target->gen(profile, _targets, _imports, _pm.imports, opt_cdb);
 }
 
 void Project::setup_default_profiles()
@@ -295,7 +292,7 @@ std::string const &Project::desc() const
 
 std::vector<std::filesystem::path> const &Project::import_dirs() const
 {
-	return _import_dirs;
+	return _pm.imports;
 }
 
 bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) const

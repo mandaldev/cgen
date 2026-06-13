@@ -10,6 +10,8 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
 /// a cgen target
 class Target
@@ -27,7 +29,7 @@ class Target
 	std::string _pkg_lflags;
 
 	bool _deps_resolved = false; // mark, dont resolve again
-	/// resolved deps
+	/// resolved deps, 既保含内部的，也包含外部的
 	std::vector<std::string> _dep;
 
 	bool _phony_applyed = false;
@@ -44,13 +46,16 @@ class Target
 	void append(std::shared_ptr<Target> target);
 
 	std::shared_ptr<Target> import_target(
-		std::vector<std::filesystem::path> import_dirs,
+		std::vector<std::filesystem::path> const &data_dirs,
 		std::map<std::string, std::shared_ptr<Target>> &imports,
+		Pkgconf &pkgconf,
 		std::string const &name
 	);
 
 	/// export this target only: not include its indirect dep and pkgconf
 	std::filesystem::path exports(std::filesystem::path const &prefix) const;
+
+	bool load_pkgconfs(Pkgconf &pkgconf);
 
 public:
 	/// load target data from model
@@ -70,17 +75,22 @@ public:
 	/// from pkgconf and extras
 	std::string external_lflags() const;
 
-	bool load_pkgconfs(Pkgconf &pkgconf);
-
 	/// resolve deps
 	bool resolve_deps(
 		std::map<std::string, std::shared_ptr<Target>> const &all_targets,
-		std::vector<std::filesystem::path> import_dirs,
-		std::map<std::string, std::shared_ptr<Target>> &imports
+		std::vector<std::filesystem::path> const &data_dirs,
+		std::map<std::string, std::shared_ptr<Target>> &imports,
+		Pkgconf &pkgconf
 	);
 
 	/// generate build scripts
-	bool gen(std::string const &profile, std::map<std::string, std::shared_ptr<Target>> const &targets, std::map<std::string, std::shared_ptr<Target>> const &imports, std::optional<Cdb> &opt_cdb) const;
+	bool gen(
+		std::string const &profile,
+		std::map<std::string, std::shared_ptr<Target>> const &targets,
+		std::map<std::string, std::shared_ptr<Target>> const &imports,
+		std::vector<std::filesystem::path> const &import_dirs,
+		std::optional<Cdb> &opt_cdb
+	) const;
 
 	/// apply templates
 	bool apply_templates(std::map<std::string, std::shared_ptr<Target>> const &all_templates);

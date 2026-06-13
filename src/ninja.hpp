@@ -70,7 +70,7 @@ bool gen_ninja_target_build(
 	std::set<std::filesystem::path> const &src,
 	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
 	std::string const &extra_cflags,
-	std::string const &extra_lflags
+	std::vector<std::string> const &extra_lflags
 );
 
 std::string target_file_name(std::string const &target_name, TargetType type);
