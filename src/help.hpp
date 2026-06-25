@@ -25,26 +25,26 @@ This is free software, and you are welcome to redistribute it
 under certain conditions.
 )";
 
-static const auto HELP_BUILD = R"(cgen build - build targets
+static const auto HELP_BUILD = R"(cgen build [target]... [OPTION]...
 
-cgen build [target]... [OPTION]...
+build targets.
 
 options:
   -cdb    generate compilation database file: compile_commands.json
   --profile=<PROFILE>      build profile to use, default is debug
 )";
 
-static const auto HELP_INSTALL = R"(cgen install - install targets
+static const auto HELP_INSTALL = R"(cgen install [target]... [OPTION]...
 
-cgen install [target]... [OPTION]...
+install targets.
 
 options:
   --prefix=PREFIX    instal prefix, default '/usr/local'
 )";
 
-static const auto HELP_PROJECT = R"(cgen project - gen new project
+static const auto HELP_PROJECT = R"(cgen project NAME [OPTION]...
 
-cgen project NAME [OPTION]...
+generate new project at current folder.
 
 options:
   --author=AUTHOR          author of new project
@@ -55,9 +55,9 @@ options:
   --type=exe|slib|dlib   add a specific target type in new project
 )";
 
-static const auto HELP_FILES = R"(cgen class|cpp|hpp|c|h - gen new C/C++ class, sources files...
+static const auto HELP_FILES = R"(cgen class|cpp|hpp|c|h NAME... [OPTION]
 
-cgen class|cpp|hpp|c|h NAME... [OPTION]
+generate new C/C++ class, sources files...
 
 meta info options(if not provided, cgen use info from current project):
   --author=AUTHOR
