@@ -1,12 +1,21 @@
 #include "Driver.hpp"
+#include "ProjectModel.hpp"
+#include "Target.hpp"
 #include "common.hpp"
 #include "help.hpp"
+#include "pkgconf/pkgconf.hpp"
 #include <Com/Date.hpp>
+#include <Com/Mas/serialize.hpp>
 #include <Com/Xo/exec.hpp>
 #include <Com/file.hpp>
+#include <Com/log.hpp>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <sstream>
+#include <string>
+#include <vector>
 
 static std::string to_valid_fence_string(std::string const &str)
 {
@@ -140,6 +149,8 @@ Driver::Driver(int argc, char const *const *argv)
 	_cmd["help"] = [&]() { return help(""); };
 	_cmd["build"] = [&]() { return build(); };
 	_cmd["install"] = [&]() { return install(); };
+	_cmd["uninstall"] = [&]() { return uninstall(); };
+	_cmd["list"] = [&]() { return list(); };
 	_cmd["project"] = [&]()
 	{
 		auto args = _cmdline.get_arguments();
@@ -237,6 +248,8 @@ bool Driver::help(std::string const &cmd)
 		{ "hpp", HELP_FILES },
 		{ "c", HELP_FILES },
 		{ "h", HELP_FILES },
+		{ "install", HELP_INSTALL },
+		{ "list", HELP_LIST },
 	};
 	auto it = cmd_help.find(cmd.size() || args.empty() ? cmd : args[0]);
 	if (it != cmd_help.end()) {
@@ -483,6 +496,155 @@ bool Driver::gen_files(
 		if (!write_file(file_dir / file_name, buf)) {
 			return false;
 		}
+	}
+	return true;
+}
+
+static std::set<std::string> search_installed(std::filesystem::path const &install_dir)
+{
+	std::set<std::string> names;
+	for (auto f : std::filesystem::directory_iterator(install_dir)) {
+		if (f.is_directory()) {
+			continue;
+		}
+		auto name = f.path().filename().string();
+		if (name.size() <= 5 || name.substr(name.size() - 5) != ".list") {
+			continue;
+		}
+		name = name.substr(0, name.size() - 5);
+		names.insert(name);
+	}
+	return names;
+}
+
+static std::map<std::string, std::shared_ptr<Target>> load_installed_targets(
+	std::set<std::string> const &names,
+	std::filesystem::path const &install_dir,
+	std::map<std::string, std::set<std::string>> *depend_by
+)
+{
+	auto data_dirs = cgen_data_dirs();
+	data_dirs.insert(data_dirs.begin(), install_dir.parent_path());
+
+	std::map<std::string, std::shared_ptr<Target>> targets, imports;
+	for (auto const &name : names) {
+		auto target_file = install_dir / (name + ".mas");
+		auto list_file = install_dir / (name + ".list");
+		if (auto mas = Com::load_mas_file(target_file)) {
+			ProjectModel::TargetModel tm;
+			if (Com::Mas::deserialize(mas.value(), tm)) {
+				auto target = std::make_shared<Target>();
+				if (target->load(name, tm)) {
+					targets[name] = target;
+				}
+			}
+		}
+	}
+
+	if (depend_by) {
+		Pkgconf pkg;
+		for (auto [name, t] : targets) {
+			t->resolve_deps(targets, data_dirs, imports, pkg);
+		}
+
+		for (auto [name, t] : targets) {
+			for (auto &d : t->dep()) {
+				auto it = targets.find(d);
+				if (it == targets.end()) {
+					continue;
+				}
+				(*depend_by)[d].insert(name);
+			}
+		}
+	}
+	return targets;
+}
+
+bool Driver::uninstall()
+{
+	auto no_dep = _cmdline.get_switch("no-dep");
+	std::filesystem::path prefix = _cmdline.get_switch("prefix").value_or("/usr/local");
+	auto data_dir = prefix / "share/cgen";
+	auto install_dir = data_dir / INSTALLED_FOLDER;
+
+	std::set<std::string> names = search_installed(install_dir);;
+	std::map<std::string, std::set<std::string>> depend_by;
+	auto targets = load_installed_targets(names, install_dir, no_dep ? nullptr : &depend_by);
+
+	std::set<std::string> to_be_unintsall;
+	for (auto &name : _cmdline.get_arguments()) {
+		auto it = targets.find(name);
+		if (it == targets.end()) {
+			LOG_ERROR << "Failed to find target: " << name;
+			return false;
+		}
+		to_be_unintsall.insert(name);
+		if (auto it = depend_by.find(name); it != depend_by.end()) {
+			to_be_unintsall.insert(it->second.begin(), it->second.end());
+		}
+	}
+
+	for (auto const &name : to_be_unintsall) {
+		auto p = install_dir / (name + ".list");
+		uninstall_list(p);
+	}
+	return true;
+}
+
+bool Driver::list()
+{
+	std::filesystem::path prefix = _cmdline.get_switch("prefix").value_or("/usr/local");
+	auto data_dir = prefix / "share/cgen";
+	auto install_dir = data_dir / INSTALLED_FOLDER;
+
+	std::set<std::string> names = search_installed(install_dir);;
+	if (_cmdline.get_arguments().empty()) {
+		std::cout << "targets installed under " << prefix << ":\n";
+		for (auto const &name : names) {
+			std::cout << name << "\n";
+		}
+		return true;
+	}
+
+	std::map<std::string, std::set<std::string>> depend_by;
+	auto targets = load_installed_targets(names, install_dir, &depend_by);
+
+	for (auto &name : _cmdline.get_arguments()) {
+		auto it = targets.find(name);
+		if (it == targets.end()) {
+			LOG_ERROR << "Failed to find target: " << name;
+			return false;
+		}
+		auto const &m = it->second->model();
+		std::cout << "     Target: " << m.name << "\n";
+		std::cout << "       Type: " << m.type << "\n";
+		std::cout << "        std: " << m.std << "\n";
+		std::cout << "   language: " << m.language << "\n";
+		std::cout << "    depends: ";
+		bool first = true;
+		std::set<std::string> deps;
+		deps.insert(it->second->dep().begin(), it->second->dep().end());
+		for (auto const &d : deps) {
+			auto it = targets.find(d);
+			if (it == targets.end()) {
+				continue;
+			}
+			std::cout << (first ? "" : ", ") << d;
+			first = false;
+		}
+		std::cout << "\n";
+
+		first = true;
+		auto it2 = depend_by.find(name);
+		if (it2 == depend_by.end()) {
+			continue;
+		}
+		std::cout << "depended by: ";
+		for (auto const &d : it2->second) {
+			std::cout << (first ? "" : ", ") << d;
+			first = false;
+		}
+		std::cout << "\n";
 	}
 	return true;
 }

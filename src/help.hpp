@@ -38,8 +38,22 @@ static const auto HELP_INSTALL = R"(cgen install [target]... [OPTION]...
 
 install targets.
 
+if targets are not provided, install all targets.
+
 options:
   --prefix=PREFIX    instal prefix, default '/usr/local'
+)";
+
+static const auto HELP_UNINSTALL = R"(cgen uninstall target... [OPTION]...
+
+uninstall installed targets. If other targets depend on them, they will
+be uninstalled too.
+
+At least one target must be provided.
+
+options:
+  --prefix=PREFIX    instal prefix, default '/usr/local'
+  --no-dep           don't uninstall targets that depend on them
 )";
 
 static const auto HELP_PROJECT = R"(cgen project NAME [OPTION]...
@@ -66,6 +80,16 @@ meta info options(if not provided, cgen use info from current project):
 
 other options:
   --dir=DIR      put files at DIR (relative to current working directory), default '.'
+)";
+
+static const auto HELP_LIST = R"(cgen list [target]... [OPTION]...
+
+list installed targets.
+
+If no target is provided, list all installed targets.
+
+options:
+  --prefix=PREFIX    instal prefix, default '/usr/local'
 )";
 
 #endif

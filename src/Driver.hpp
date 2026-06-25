@@ -37,6 +37,10 @@ class Driver
 
 	bool gen_class(std::vector<std::string> const &names);
 
+	bool uninstall();
+
+	bool list();
+
 	std::string load_license(std::string const &license_name);
 
 	std::string load_license_header(std::string const &license_name);
