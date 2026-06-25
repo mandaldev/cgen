@@ -61,6 +61,8 @@ struct ProjectModel
 			std::set<std::filesystem::path> headers;
 		};
 		std::vector<Install> install;
+		/// 是否必须手动安装
+		bool explicit_install = false;
 	};
 	using Target = std::variant<TargetModel, std::string>;
 	/// <name, target/include>

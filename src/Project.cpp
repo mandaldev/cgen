@@ -178,6 +178,9 @@ bool Project::install_all_targets(std::string const &profile, std::filesystem::p
 		return false;
 	}
 	for (auto &t : _targets) {
+		if (t.second->model().explicit_install) {
+			continue;
+		}
 		if (!t.second->install(prefix, profile)) {
 			return false;
 		}

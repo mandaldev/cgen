@@ -55,7 +55,8 @@ Value serialize(ProjectModel::TargetModel const &v)
 		COM_KV(v, pkgconf),
 		COM_KV(v, extra_cflags),
 		COM_KV(v, extra_lflags),
-		COM_KV(v, install)
+		COM_KV(v, install),
+		COM_KV(v, explicit_install)
 	);
 }
 
@@ -74,7 +75,8 @@ bool deserialize(Value const &mas, ProjectModel::TargetModel &v)
 		COM_KV(v, pkgconf),
 		COM_KV(v, extra_cflags),
 		COM_KV(v, extra_lflags),
-		COM_KV(v, install)
+		COM_KV(v, install),
+		COM_KV(v, explicit_install)
 	);
 }
 
