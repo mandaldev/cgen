@@ -249,6 +249,7 @@ bool Driver::help(std::string const &cmd)
 		{ "c", HELP_FILES },
 		{ "h", HELP_FILES },
 		{ "install", HELP_INSTALL },
+		{ "uninstall", HELP_UNINSTALL },
 		{ "list", HELP_LIST },
 	};
 	auto it = cmd_help.find(cmd.size() || args.empty() ? cmd : args[0]);
