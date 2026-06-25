@@ -67,7 +67,7 @@ public:
 
 	ProjectModel::TargetModel const &model() const;
 
-	std::vector<std::string> dep() const;
+	std::vector<std::string> const &dep() const;
 
 	/// from pkgconf and extras
 	std::string external_cflags() const;
@@ -101,5 +101,7 @@ public:
 	bool install(std::filesystem::path const &prefix, std::string const &profile) const;
 
 }; // class Target
+
+bool uninstall_list(std::filesystem::path const &p);
 
 #endif

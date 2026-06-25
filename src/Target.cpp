@@ -97,7 +97,7 @@ ProjectModel::TargetModel const &Target::model() const
 	return _tm;
 }
 
-std::vector<std::string> Target::dep() const
+std::vector<std::string> const &Target::dep() const
 {
 	return _dep;
 }
@@ -372,7 +372,7 @@ static std::filesystem::path install_file(std::filesystem::path const &p, std::f
 	return dst;
 }
 
-static bool uninstall_list(std::filesystem::path const &p)
+bool uninstall_list(std::filesystem::path const &p)
 {
 	auto opt = Com::load_mas_file(p);
 	if (!opt) {
