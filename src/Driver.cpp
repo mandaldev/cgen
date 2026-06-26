@@ -544,11 +544,11 @@ static std::map<std::string, std::shared_ptr<Target>> load_installed_targets(
 
 	if (depend_by) {
 		Pkgconf pkg;
-		for (auto [name, t] : targets) {
+		for (auto &[name, t] : targets) {
 			t->resolve_deps(targets, data_dirs, imports, pkg);
 		}
 
-		for (auto [name, t] : targets) {
+		for (auto &[name, t] : targets) {
 			for (auto &d : t->dep()) {
 				auto it = targets.find(d);
 				if (it == targets.end()) {

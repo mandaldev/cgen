@@ -122,7 +122,7 @@ bool gen_ninja_target_build(
 		std::set<std::string> implicits;
 		std::set<std::string> order_onlys;
 		lflags.push_back("-L.");
-		for (auto &&[implicit, name] : dep) {
+		for (auto &[implicit, name] : dep) {
 			if (implicit) {
 				has_implicit = true;
 				if (!implicits.count(name)) {

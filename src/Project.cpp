@@ -130,12 +130,12 @@ bool Project::load(ProjectModel const &project)
 		return false;
 	}
 
-	for (auto &&[name, target] : _targets) {
+	for (auto &[name, target] : _targets) {
 		if (!target->apply_templates(_templates)) {
 			return false;
 		}
 	}
-	for (auto &&[name, target] : _targets) {
+	for (auto &[name, target] : _targets) {
 		if (!target->apply_phonys(_phonys)) {
 			return false;
 		}
@@ -143,14 +143,14 @@ bool Project::load(ProjectModel const &project)
 	{
 		ProjectModel::TargetArray tms;
 		tms.reserve(_targets.size());
-		for (auto &&[name, target] : _targets) {
+		for (auto &[name, target] : _targets) {
 			tms.push_back(target->model());
 		}
 		_pm.target = std::move(tms);
 	}
 	_project_cached = Com::Mas::encode(Com::Mas::serialize(_pm));
 
-	for (auto &&[name, target] : _targets) {
+	for (auto &[name, target] : _targets) {
 		if (!target->resolve_deps(_targets, _data_dirs, _imports, _pkgconf)) {
 			return false;
 		}
@@ -307,7 +307,7 @@ bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) 
 	}
 	auto &profile = opt_profile.value();
 	std::set<std::string> generated;
-	for (auto &&[name, target] : _targets) {
+	for (auto &[name, target] : _targets) {
 		if (!gen_with_dep(profile_name, target, generated, opt_cdb)) { // generate each target first
 			return false;
 		}
