@@ -1,110 +1,123 @@
 {
-  name "hw"
+  name "cgen dep demo"
   author "Mandal Dev"
   license "GPL-3.0"
 
   target [
     {
-      name "hw"
+      name "dep_demo"
       language "c++"
       std "c++17"
       type "exe"
-
-      desc "demo exe target with dep of a slib"
 
       src [
         "src/main.cpp"
       ]
 
       dep [
-        "slib3"
+        "G"
       ]
     }
 
     {
-      name "slib1"
+      name "A"
       language "c++"
       std "c++17"
-      type "slib"
+      type "lib"
 
       src [
-        "src/slib1/lib.cpp"
-      ]
-    }
-
-    {
-      name "slib2"
-      language "c++"
-      std "c++17"
-      type "slib"
-
-      src [
-        "src/slib2/lib.cpp"
-      ]
-      dep [
-        "slib1"
-      ]
-    }
-
-    {
-      name "slib3"
-      language "c++"
-      std "c++17"
-      type "slib"
-
-      src [
-        "src/slib3/lib.cpp"
-      ]
-      dep [
-        "slib2"
-      ]
-    }
-
-    {
-      name "dlib1"
-      language "c++"
-      std "c++17"
-      type "dlib"
-      desc "demo dlib target with dep of a slib"
-
-      src [
-        "src/dlib1/lib.cpp"
+        "src/A.cpp"
       ]
 
       dep [
-        "slib1"
+        { name "B" private "true" }
+        { name "C" private "false" }
       ]
     }
 
     {
-      name "dlib2"
+      name "B"
       language "c++"
       std "c++17"
-      type "dlib"
-      desc "demo dlib target with dep of a slib"
+      type "lib"
 
       src [
-        "src/dlib2/lib.cpp"
+        "src/B.cpp"
       ]
-
       dep [
-        "dlib1"
       ]
     }
 
     {
-      name "dlib3"
+      name "C"
       language "c++"
       std "c++17"
-      type "dlib"
-      desc "demo dlib target with dep of a slib"
+      type "lib"
 
       src [
-        "src/dlib3/lib.cpp"
+        "src/C.cpp"
+      ]
+      dep [
+      ]
+    }
+
+    {
+      name "D"
+      language "c++"
+      std "c++17"
+      type "lib"
+
+      src [
+        "src/D.cpp"
       ]
 
       dep [
-        "dlib2"
+        { name "E" private "true" }
+        { name "F" }
+      ]
+    }
+
+    {
+      name "E"
+      language "c++"
+      std "c++17"
+      type "lib"
+
+      src [
+        "src/E.cpp"
+      ]
+
+      dep [
+      ]
+    }
+
+    {
+      name "F"
+      language "c++"
+      std "c++17"
+      type "lib"
+
+      src [
+        "src/F.cpp"
+      ]
+
+      dep [
+      ]
+    }
+
+    {
+      name "G"
+      language "c++"
+      std "c++17"
+      type "lib"
+
+      src [
+        "src/G.cpp"
+      ]
+
+      dep [
+        { name "A" private "true" }
+        "D"
       ]
     }
   ]

@@ -10,7 +10,7 @@
       language "c++"
       std "c++17"
 
-      type "slib"
+      type "lib"
       src [
         "src/lib.cpp"
       ]

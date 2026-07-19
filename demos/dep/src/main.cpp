@@ -1,8 +1,8 @@
-#include "slib3/lib.hpp"
+#include "G.hpp"
 #include <iostream>
 
 int main(int argc, const char *argv[])
 {
-	std::cout << slib3_get_message() << "\n";
+	std::cout << from_g() << "\n";
 	return 0;
 }

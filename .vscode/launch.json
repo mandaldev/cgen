@@ -147,8 +147,9 @@
       "program": "${workspaceFolder}/build/debug/cgen",
       "args": [
         "build",
+        "dep_demo",
         "-cdb",
-        "--profile=debug"
+        "--profile=debug_with_shared"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}/demos/dep",
