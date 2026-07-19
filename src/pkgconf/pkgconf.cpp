@@ -115,6 +115,7 @@ bool Pkgconf::find(std::string const &pkg_name)
 
 	PkgInfo info;
 	info.cflags = Com::join(" ", cast_string_fragment_list(pkg->cflags));
+	info.cflags_private = Com::join(" ", cast_string_fragment_list(pkg->cflags_private));
 	info.libs = Com::join(" ", cast_string_fragment_list(pkg->libs));
 	info.libs_private = Com::join(" ", cast_string_fragment_list(pkg->libs_private));
 	info.required = cast_dependency_fragment_list(pkg->required);
@@ -135,6 +136,20 @@ bool Pkgconf::find(std::string const &pkg_name)
 	return true;
 }
 
+static std::string convert_to_static(std::string_view lflags)
+{
+	std::string ret;
+	auto frags = Com::split(lflags, " ");
+	for (auto frag : frags) {
+		if (frag.size() > 2 && frag.substr(0, 2) == "-l" && !(frag.size() > 3 && frag[2] == ':')) {
+			ret = Com::join(" ", ret, "-l:lib" + std::string(frag.substr(2)) + ".a");
+		} else {
+			ret = Com::join(" ", ret, std::string(frag));
+		}
+	}
+	return ret;
+}
+
 std::string Pkgconf::flags_no_recursively(RecursiveStack &stack, std::string const &pkg_name)
 {
 	if (stack.pkgs.count(pkg_name)) {
@@ -153,7 +168,15 @@ std::string Pkgconf::flags_no_recursively(RecursiveStack &stack, std::string con
 		ret = Com::join(" ", ret, pkg.cflags);
 	}
 	if (stack.lflags) {
-		ret = Com::join(" ", ret, pkg.libs);
+		ret = Com::join(" ", ret, stack.lflags_private ? convert_to_static(pkg.libs) : pkg.libs);
+	}
+	if (stack.cflags_private) {
+		stack.cflags_private = false;
+		ret = Com::join(" ", ret, pkg.cflags_private);
+	}
+	if (stack.lflags_private) {
+		stack.lflags_private = false;
+		ret = Com::join(" ", ret, pkg.libs_private);
 	}
 	if (stack.required) {
 		for (auto &dep : pkg.required) {
@@ -161,6 +184,7 @@ std::string Pkgconf::flags_no_recursively(RecursiveStack &stack, std::string con
 		}
 	}
 	if (stack.required_private) {
+		stack.required_private = false;
 		for (auto &dep : pkg.required_private) {
 			ret = Com::join(" ", ret, flags_no_recursively(stack, dep));
 		}
@@ -168,20 +192,20 @@ std::string Pkgconf::flags_no_recursively(RecursiveStack &stack, std::string con
 	return ret;
 }
 
-std::string Pkgconf::cflags(std::string const &pkg_name)
+std::string Pkgconf::cflags(std::string const &pkg_name, bool link_static)
 {
 	RecursiveStack stack;
 	stack.cflags = true;
 	stack.required = true;
-	stack.required_private = true;
+	stack.cflags_private = stack.required_private = link_static;
 	return flags_no_recursively(stack, pkg_name);
 }
 
-std::string Pkgconf::libs(std::string const &pkg_name)
+std::string Pkgconf::libs(std::string const &pkg_name, bool link_static)
 {
 	RecursiveStack stack;
 	stack.lflags = true;
 	stack.required = true;
-	stack.required_private = false;
+	stack.lflags_private = stack.required_private = link_static;
 	return flags_no_recursively(stack, pkg_name);
 }

@@ -1,7 +1,10 @@
 #include "Project.hpp"
+#include "ProjectModel.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
 #include <Com/file.hpp>
+#include <Com/log.hpp>
+#include <Com/string.hpp>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
@@ -91,10 +94,10 @@ std::map<std::string, std::shared_ptr<Target>> const &Project::targets() const
 	return _targets;
 }
 
-std::optional<ProjectModel::Profile> Project::get_profile(std::string const &name) const
+std::optional<Profile> Project::get_profile(std::string const &name) const
 {
-	auto it = _profile.find(name);
-	if (it != _profile.end()) {
+	auto it = _profiles.find(name);
+	if (it != _profiles.end()) {
 		return it->second;
 	}
 	return {};
@@ -118,7 +121,7 @@ bool Project::load(ProjectModel const &project)
 		_data_dirs.insert(_data_dirs.end(), dirs.begin(), dirs.end());
 	}
 
-	setup_default_profiles();
+	setup_profiles();
 
 	if (!std::visit(
 		[this](auto &targets)
@@ -163,49 +166,78 @@ bool Project::build_all_targets(std::string const &profile)
 	return 0 == std::system(("ninja -C ./build/" + profile).c_str());
 }
 
-bool Project::build_target(std::string const &profile, std::string const &target_name)
+bool Project::build_targets(std::string const &profile_name, std::vector<std::string> const &targets)
 {
-	auto it = _targets.find(target_name);
-	if (it != _targets.end()) {
-		return 0 == std::system(("ninja -C ./build/" + profile + ' ' + target_file_name(target_name, it->second->type())).c_str());
+	auto const &profile = _profiles[profile_name];
+	std::string names;
+	for (auto &name : targets) {
+		auto it = _targets.find(name);
+		if (it == _targets.end()) {
+			LOG_ERROR << "no such target: " << name;
+			return false;
+		}
+		if (it->second->type() == TargetType::Executable) {
+			Com::join(" ", names, target_file_name(name, it->second->type(), false));
+		} else if (it->second->type() == TargetType::Library) {
+			if (profile.build_shared) {
+				Com::join(" ", names, target_file_name(name, it->second->type(), true));
+			}
+			if (profile.build_static) {
+				Com::join(" ", names, target_file_name(name, it->second->type(), false));
+			}
+		} else {
+			LOG_ERROR << "no such target type: " << name << " of " << (int)it->second->type();
+			return false;
+		}
 	}
-	return false;
+	return 0 == std::system(("ninja -C ./build/" + profile_name + ' ' + names).c_str());
 }
 
-bool Project::install_all_targets(std::string const &profile, std::filesystem::path const &prefix)
+bool Project::build_target(std::string const &profile_name, std::string const &target_name)
 {
-	if (!build_all_targets(profile)) {
+	return build_targets(profile_name, {target_name});
+}
+
+bool Project::install_all_targets(std::string const &profile_name, std::filesystem::path const &prefix)
+{
+	if (!build_all_targets(profile_name)) {
 		return false;
 	}
+	auto const &profile = _profiles[profile_name];
 	for (auto &t : _targets) {
 		if (t.second->model().explicit_install) {
 			continue;
 		}
-		if (!t.second->install(prefix, profile)) {
+		if (!t.second->install(prefix, profile_name, profile)) {
 			return false;
 		}
 	}
 	return true;
 }
 
-bool Project::install_target(std::string const &profile, std::filesystem::path const &prefix, std::string const &target_name)
+bool Project::install_target(std::string const &profile_name, std::filesystem::path const &prefix, std::string const &target_name)
 {
-	if (!build_target(profile, target_name)) {
+	if (!build_target(profile_name, target_name)) {
 		return false;
 	}
 	auto target = _targets[target_name];
+	auto const &profile = _profiles[profile_name];
 	if (target->type() != TargetType::Executable) {
-		for (auto d : target->dep()) {
-			auto it = _targets.find(d);
-			if (it != _targets.end()) {
-				it->second->install(prefix, profile);
+		if (profile.build_static) {
+			for (auto d : target->dep_for_build(false)) {
+				auto it = _targets.find(d.name);
+				if (it != _targets.end()) {
+					it->second->install(prefix, profile_name, profile);
+				}
 			}
 		}
+		if (profile.build_shared) {
+		}
 	}
-	return target->install(prefix, profile);
+	return target->install(prefix, profile_name, profile);
 }
 
-bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const
+bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb)
 {
 	auto changed = true;
 	auto build_dir = std::filesystem::path("build") / profile;
@@ -232,39 +264,123 @@ bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb)
 	return false;
 }
 
-bool Project::gen_with_dep(std::string const &profile, std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const
+bool Project::gen_with_dep(
+	std::string const &profile_name,
+	std::shared_ptr<Target> target,
+	std::set<std::string> &generated_libs,
+	std::set<std::string> &generated_exes,
+	std::optional<Cdb> &opt_cdb
+)
 {
-	if (generated.count(target->name())) { // loop dep?
+	auto name = target->name();
+	if (generated_libs.count(name) || generated_exes.count(name)) { // loop dep?
 		return true;
 	}
 	if (target->type() == TargetType::Phony) {
 		return true;
 	}
-	generated.insert(target->name());
-	for (auto &d : target->dep()) {
-		auto it = _targets.find(d);
-		if (it == _targets.end()) {
-			if (_imports.count(d)) {
-				continue;
+
+	auto const &profile = _profiles[profile_name];
+
+	auto gen_deps = [&](bool shared)
+	{
+		for (auto &d : target->dep_for_build(shared)) {
+			auto it = _targets.find(d.name);
+			if (it == _targets.end()) {
+				if (_imports.count(d.name)) {
+					continue;
+				}
+				std::cerr << "Error: no target named " << d.name << " found\n";
+				return false;
 			}
-			std::cerr << "Error: no target named " << d << " found\n";
+			if (!gen_with_dep(profile_name, it->second, generated_libs, generated_exes, opt_cdb)) {
+				return false;
+			}
+		}
+		return true;
+	};
+
+	if (target->type() == TargetType::Executable) {
+		generated_exes.insert(name);
+		auto res = gen_deps(profile.build_shared);
+		if (!res) {
 			return false;
 		}
-		if (!gen_with_dep(profile, it->second, generated, opt_cdb)) {
-			return false;
+	} else {
+		generated_libs.insert(name);
+		if (profile.build_static) {
+			auto res = gen_deps(false);
+			if (!res) {
+				return false;
+			}
+		}
+		if (profile.build_shared) {
+			auto res = gen_deps(true);
+			if (!res) {
+				return false;
+			}
 		}
 	}
-	return target->gen(profile, _targets, _imports, _pm.imports, opt_cdb);
+
+
+	return target->gen(profile_name, profile, _targets, _imports, _pm.imports, opt_cdb);
 }
 
-void Project::setup_default_profiles()
+static const auto DEBUG_PROFILE = Profile{
+	{}, {"-Wall -g -DDEBUG"},
+	{}, {},
+};
+
+static const auto RELEASE_PROFILE = Profile{
+	{}, {"-Wall -O2 -DNDEBUG"},
+	{}, {},
+};
+
+void Project::setup_profiles()
 {
-	_profile = _pm.profile;
-	if (!_profile.count("debug")) {
-		_profile["debug"] = { "-Wall -g -DDEBUG", "", };
+	_profiles["debug"] = DEBUG_PROFILE;
+	_profiles["release"] = RELEASE_PROFILE;
+	{
+		auto &tmp = _profiles["debug_only_shared"] = DEBUG_PROFILE;
+		tmp.build_shared = true;
+		tmp.build_static = false;
 	}
-	if (!_profile.count("release")) {
-		_profile["release"] = { "-Wall -O2 -DNDEBUG", "", };
+	{
+		auto &tmp = _profiles["debug_with_shared"] = DEBUG_PROFILE;
+		tmp.build_shared = true;
+		tmp.build_static = true;
+	}
+	{
+		auto &tmp = _profiles["release_only_shared"] = RELEASE_PROFILE;
+		tmp.build_shared = true;
+		tmp.build_static = false;
+	}
+	{
+		auto &tmp = _profiles["release_with_shared"] = RELEASE_PROFILE;
+		tmp.build_shared = true;
+		tmp.build_static = true;
+	}
+	for (auto const &[name, p] : _pm.profile) {
+		auto &tmp = _profiles[name];
+		if (!p.inherit.empty() && p.inherit != name) {
+			if (auto it = _profiles.find(p.inherit); it != _profiles.end()) {
+				tmp = it->second;
+			} else {
+				LOG_WARN << "there is no build in profile named: " << p.inherit;
+			}
+		}
+		sequence_append(tmp.cflags, _pm.flatten_flags(p.cflags));
+		sequence_append(tmp.lflags, _pm.flatten_flags(p.lflags));
+		sequence_append(tmp.cflags_private, _pm.flatten_flags(p.cflags_private));
+		sequence_append(tmp.lflags_private, _pm.flatten_flags(p.lflags_private));
+		auto build_shared = p.build_shared();
+		auto build_static = p.build_static();
+		if (tmp.build_shared != build_shared) {
+			tmp.build_shared = build_shared;
+		}
+		if (tmp.build_static != build_static) {
+			tmp.build_static = build_static;
+		}
 	}
 }
 
@@ -298,29 +414,26 @@ std::vector<std::filesystem::path> const &Project::import_dirs() const
 	return _pm.imports;
 }
 
-bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb) const
+bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb)
 {
-	auto opt_profile = get_profile(profile_name);
-	if (!opt_profile.has_value()) {
-		std::cerr << "Error: no such profile: " << profile_name << "\n";
-		return false;
-	}
-	auto &profile = opt_profile.value();
-	std::set<std::string> generated;
+	auto &profile = _profiles[profile_name];
+	std::set<std::string> libs, exes;
 	for (auto &[name, target] : _targets) {
-		if (!gen_with_dep(profile_name, target, generated, opt_cdb)) { // generate each target first
+		if (!gen_with_dep(profile_name, target, libs, exes, opt_cdb)) { // generate each target first
 			return false;
 		}
 	}
-	if (opt_cdb) {
-		for (auto &item : opt_cdb.value()) {
-			// add profile (global) cflags
-			if (profile.cflags.size()) {
-				item.flags = profile.cflags + ' ' + item.flags;
-			}
-		}
+
+	auto cflags = Com::join(
+		" ",
+		Com::join(" ", profile.cflags),
+		Com::join(" ", profile.cflags_private)
+	);
+	for (auto &item : opt_cdb.value_or(Cdb())) {
+		// add profile (global) cflags
+		item.flags = Com::join(" ", cflags, item.flags);
 	}
-	auto script = gen_ninja_build(profile.cflags, profile.cflags, generated);
+	auto script = gen_ninja_build(profile, libs, exes);
 
 	std::ofstream fs;
 	std::string fname = "./build/" + profile_name + '/' + NINJA_BUILD;

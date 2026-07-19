@@ -14,10 +14,16 @@ using namespace std::literals;
 static std::string gen_ninja_rules()
 {
 	std::string rules;
-	rules += "rule "s + NINJA_RULE_COMPILE + "\n"
+	rules += "rule "s + NINJA_RULE_SCOMPILE + "\n"
 		 "    deps = gcc\n"
 		 "    depfile = $out.d\n"
 		 "    command = $CC -c -o $out $in $cflags -MD -MF $out.d\n"
+		 "\n"
+
+	         "rule " + NINJA_RULE_DCOMPILE + "\n"
+		 "    deps = gcc\n"
+		 "    depfile = $out.shared.d\n"
+		 "    command = $CC -c -o $out $in $cflags -fPIC -MD -MF $out.shared.d\n"
 		 "\n"
 
 		 "rule " + NINJA_RULE_LINK_EXE + "\n"
@@ -36,16 +42,26 @@ static std::string gen_ninja_rules()
 }
 
 std::string gen_ninja_build(
-	std::string const &cflags,
-	std::string const &lflags,
-	std::set<std::string> const &subninja_names
+	Profile const &profile,
+	std::set<std::string> const &libs,
+	std::set<std::string> const &exes
 )
 {
 	std::string build;
+	auto cflags = Com::join(" ", Com::join(" ", profile.cflags), Com::join(" ", profile.cflags_private));
+	auto lflags = Com::join(" ", Com::join(" ", profile.lflags), Com::join(" ", profile.lflags_private));
 	build += NINJA_GLOBAL_CFLAGS + " = "s + cflags + "\n";
 	build += NINJA_GLOBAL_LFLAGS + " = "s + lflags + "\n\n";
 	build += gen_ninja_rules();
-	for (auto &name : subninja_names) {
+	for (auto &name : libs) {
+		if (profile.build_static) {
+			build += "subninja " + name + NINJA_BUILD_EXT + "\n";
+		}
+		if (profile.build_shared) {
+			build += "subninja "s + SHAERD_TARGET_NINJA_BUILD_PREFIX + name + NINJA_BUILD_EXT + "\n";
+		}
+	}
+	for (auto &name : exes) {
 		build += "subninja " + name + NINJA_BUILD_EXT + "\n";
 	}
 	return build;
@@ -101,62 +117,64 @@ static std::string filter_lflags(std::vector<std::string> const &flags)
 	);
 }
 
-bool gen_ninja_target_build(
-	std::string const &profile, // debug or release
+bool gen_one_ninja_target_build(
+	std::string const &profile_name,
+	bool shared,
+	bool build_shared,
 	std::string const &cc,
 	TargetType type,
 	std::string const &name,
 	std::set<std::filesystem::path> const &src,
-	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
-	std::string const &extra_cflags,
+	std::vector<std::string> const &inner_deps,
+	std::vector<std::string> const &extra_cflags,
 	std::vector<std::string> const &extra_lflags
 )
 {
 	std::vector<std::string> cflags;
 	std::vector<std::string> lflags;
-	std::string deps_implicit, deps_order_only;
-	bool has_implicit = false, has_order_only = false;
-	if (dep.size()) {
-		deps_implicit = "|";
-		deps_order_only = " ||";
-		std::set<std::string> implicits;
-		std::set<std::string> order_onlys;
+	std::string deps_str;
+	std::string const phony_name_prefix = shared ? "_phony_so_" : "_phony_";
+	std::string dep_ext = ".so";
+	std::string dep_phony_name_prefix = "_phony_so_";
+	if (type == TargetType::Executable) {
+		if (!build_shared) {
+			dep_ext = ".a";
+			dep_phony_name_prefix = "_phony_";
+		}
+	} else if (!shared) {
+		dep_ext = ".a";
+		dep_phony_name_prefix = "_phony_";
+	}
+	if (inner_deps.size()) {
 		lflags.push_back("-L.");
-		for (auto &[implicit, name] : dep) {
-			if (implicit) {
-				has_implicit = true;
-				if (!implicits.count(name)) {
-					implicits.insert(name);
-					deps_implicit += " _phony_" + name;
-				}
-			} else {
-				has_order_only = true;
-				if (!order_onlys.count(name)) {
-					order_onlys.insert(name);
-					deps_order_only += " _phony_" + name;
-				}
+		deps_str = build_shared ? " ||" : "|";
+		std::set<std::string> deps;
+		for (auto &name : inner_deps) {
+			if (!deps.count(name)) {
+				deps.insert(name);
+				deps_str += " " + dep_phony_name_prefix + name;
+				lflags.push_back("-l:lib" + name + dep_ext);
 			}
-			lflags.push_back("-l" + name);
 		}
 	}
-	std::string out_name = target_file_name(name, type);
+	std::string out_name = target_file_name(name, type, shared);
 	std::string link_rule;
 	switch (type) {
 	case TargetType::Executable:
 		link_rule = NINJA_RULE_LINK_EXE;
 		break;
-	case TargetType::StaticLibrary:
-		link_rule = NINJA_RULE_LINK_SLIB;
-		break;
-	case TargetType::DynamicLibrary:
-		cflags.push_back("-fPIC");
-		link_rule = NINJA_RULE_LINK_DLIB;
+	case TargetType::Library:
+		if (shared) {
+			link_rule = NINJA_RULE_LINK_DLIB;
+		} else {
+			link_rule = NINJA_RULE_LINK_SLIB;
+		}
 		break;
 	default:
 		return false;
 	}
-	cflags.push_back(extra_cflags);
-	lflags.insert(lflags.end(), extra_lflags.begin(), extra_lflags.end());
+	sequence_append(cflags, extra_cflags);
+	sequence_append(lflags, extra_lflags);
 
 	std::string script;
 	script += Com::join(" ", "cflags = $"s + NINJA_GLOBAL_CFLAGS, filter_cflags(cflags)) + "\n";
@@ -165,6 +183,7 @@ bool gen_ninja_target_build(
 	script += "\n";
 
 	std::string obj_list;
+	std::string const obj_ext = shared ? ".PIC.o" : ".o";
 	for (auto const &p : src) {
 		if (p.has_parent_path()) { // make sure directories exist
 			std::error_code ec;
@@ -173,25 +192,27 @@ bool gen_ninja_target_build(
 				// error
 			}
 		}
-		auto out = p.string();
-		auto abs_path = std::filesystem::current_path() / "build" / profile / "../../" / p;
+		auto out = p.string() + obj_ext;
+		auto abs_path = std::filesystem::current_path() / "build" / profile_name / "../../" / p;
 		auto in = abs_path.string();
-		script += "build " + out + ".o: " + NINJA_RULE_COMPILE + " " + in + "\n";
-		obj_list += out + ".o ";
+		script += "build " + out + ": " + (shared ? NINJA_RULE_DCOMPILE : NINJA_RULE_SCOMPILE) + " " + in + "\n";
+		obj_list += out + " ";
 	}
 	script += "build " + out_name + ": " + link_rule + " " + obj_list;
-	if (has_implicit) {
-		script += deps_implicit;
-	}
-	if (has_order_only) {
-		script += deps_order_only;
+	if (!deps_str.empty()) {
+		script += deps_str;
 	}
 	script += "\n";
 
-	script += "build _phony_" + name + ": phony " + out_name + "\n";
-	script += "default _phony_" + name + "\n";
+	auto phony_name = phony_name_prefix + name;
+	script += "build " + phony_name + ": phony " + out_name + "\n";
+	script += "default " + phony_name + "\n";
 
-	std::string fname = "./build/" + profile + "/" + name + NINJA_BUILD_EXT;
+	std::string fname = "./build/" + profile_name + "/";
+	if (shared) {
+		fname += SHAERD_TARGET_NINJA_BUILD_PREFIX;
+	}
+	fname += name + NINJA_BUILD_EXT;
 	std::ofstream fs;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
@@ -204,13 +225,14 @@ bool gen_ninja_target_build(
 	return true;
 }
 
-std::string target_file_name(std::string const &target_name, TargetType type)
+std::string target_file_name(std::string const &target_name, TargetType type, bool shared)
 {
 	switch (type) {
-	case TargetType::StaticLibrary:
+	case TargetType::Library:
+		if (shared) {
+			return "lib" + target_name + ".so";
+		}
 		return "lib" + target_name + ".a";
-	case TargetType::DynamicLibrary:
-		return "lib" + target_name + ".so";
 	case TargetType::Executable:
 		return target_name;
 	default:
@@ -221,8 +243,7 @@ std::string target_file_name(std::string const &target_name, TargetType type)
 std::string target_install_subdir(TargetType type)
 {
 	switch (type) {
-	case TargetType::StaticLibrary:
-	case TargetType::DynamicLibrary:
+	case TargetType::Library:
 		return "lib";
 	case TargetType::Executable:
 		return "bin";

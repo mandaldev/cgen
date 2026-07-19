@@ -16,11 +16,9 @@ class Pkgconf
 	struct PkgInfo
 	{
 		// flags for compile and linking.
-		// private only dynamic linking needed.
-		std::string cflags, libs, libs_private;
+		std::string cflags, libs, cflags_private, libs_private;
 		// pkgs those this pkg depands.
 		// `required` need both cflags and libs,
-		// private only cflags needed (for dynamic linking).
 		std::vector<std::string> required, required_private;
 	};
 
@@ -35,6 +33,8 @@ class Pkgconf
 		std::set<std::string> pkgs;
 		bool cflags = false;
 		bool lflags = false;
+		bool cflags_private = false;
+		bool lflags_private = false;
 		bool required = false;
 		bool required_private = false;
 	};
@@ -46,9 +46,9 @@ public:
 
 	bool find(std::string const &pkg_name);
 
-	std::string cflags(std::string const &pkg_name);
+	std::string cflags(std::string const &pkg_name, bool link_static);
 
-	std::string libs(std::string const &pkg_name);
+	std::string libs(std::string const &pkg_name, bool link_static);
 }; // class Pkgconf
 
 #endif

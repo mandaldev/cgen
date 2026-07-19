@@ -1,11 +1,14 @@
 #include "Target.hpp"
+#include "ProjectModel.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
 #include <Com/Mas/serialize.hpp>
 #include <Com/file.hpp>
+#include <Com/log.hpp>
 #include <Com/string.hpp>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,15 +30,150 @@ static void load_and_fix_paths(std::set<std::filesystem::path> &paths, std::file
 
 bool Target::load_pkgconfs(Pkgconf &pkgconf)
 {
-	for (auto &p : _tm.pkgconf) {
-		if (!pkgconf.find(p)) {
-			std::cerr << "Error: pkg-config for '" << p << "' failed: can't find pkg\n";
+	for (auto &p : _tm_pkgconf) {
+		if (!pkgconf.find(p.name)) {
+			std::cerr << "Error: pkg-config for '" << p.name << "' failed: can't find pkg\n";
 			return false;
 		}
-		_pkg_cflags += " " + pkgconf.cflags(p);
-		_pkg_lflags += " " + pkgconf.libs(p);
+		auto cflags = pkgconf.cflags(p.name, p.static_);
+		auto lflags = pkgconf.libs(p.name, p.static_);
+		_static.pkg.cflags.push_back(cflags);
+		_static.pkg.lflags.push_back(lflags);
+		_build_shared.pkg.cflags.push_back(cflags);
+		_build_shared.pkg.lflags.push_back(lflags);
+		if (!p.private_) {
+			_export_shared.pkg.cflags.push_back(cflags);
+			_export_shared.pkg.lflags.push_back(lflags);
+		}
 	}
 	return true;
+}
+
+bool Target::load_dep_flags(
+	std::map<std::string, std::shared_ptr<Target>> const &targets,
+	std::map<std::string, std::shared_ptr<Target>> const &imports,
+	DepDesc const &for_inner,
+	DepDesc const &for_flags,
+	std::vector<std::string> &inner_deps,
+	std::vector<std::string> &cflags,
+	std::vector<std::string> &lflags
+)
+{
+	auto is_static = &for_flags == &_static;
+	sequence_append(cflags, for_flags.user.cflags);
+	sequence_append(lflags, for_flags.user.lflags);
+	sequence_append(cflags, for_flags.pkg.cflags);
+	sequence_append(lflags, for_flags.pkg.lflags);
+
+	/// 内部依赖项，只有内部的才会传入 ninja
+	for (auto &d : for_inner.dep) {
+		auto it = targets.find(d.name);
+		if (it != targets.end()) {
+			inner_deps.push_back(d.name);
+		}
+	}
+	for (auto &d : for_flags.dep) {
+		auto it = targets.find(d.name);
+		if (it != targets.end()) {
+			if (is_static) {
+				sequence_append(cflags, it->second->_static.user.cflags);
+				sequence_append(lflags, it->second->_static.user.lflags);
+				sequence_append(cflags, it->second->_static.pkg.cflags);
+				sequence_append(lflags, it->second->_static.pkg.lflags);
+			} else {
+				sequence_append(cflags, it->second->_build_shared.user.cflags);
+				sequence_append(lflags, it->second->_build_shared.user.lflags);
+				sequence_append(cflags, it->second->_build_shared.pkg.cflags);
+				sequence_append(lflags, it->second->_build_shared.pkg.lflags);
+			}
+		} else if (it = imports.find(d.name); it != imports.end()) {
+			if (d.static_) {
+				sequence_append(cflags, it->second->_static.user.cflags);
+				sequence_append(lflags, it->second->_static.user.lflags);
+				sequence_append(cflags, it->second->_static.pkg.cflags);
+				sequence_append(lflags, it->second->_static.pkg.lflags);
+				lflags.push_back("-l:lib" + it->second->name() + ".a");
+			} else {
+				sequence_append(cflags, it->second->_build_shared.user.cflags);
+				sequence_append(lflags, it->second->_build_shared.user.lflags);
+				sequence_append(cflags, it->second->_build_shared.pkg.cflags);
+				sequence_append(lflags, it->second->_build_shared.pkg.lflags);
+				lflags.push_back("-l" + it->second->name());
+			}
+		} else {
+			LOG_ERROR << "Failed to import target: " << d.name;
+			return false;
+		}
+	}
+	return true;
+}
+
+bool Target::gen_exe(
+	std::string const &profile_name,
+	Profile const &profile,
+	std::map<std::string, std::shared_ptr<Target>> const &targets,
+	std::map<std::string, std::shared_ptr<Target>> const &imports,
+	std::string const &cc,
+	std::vector<std::string> cflags,
+	std::vector<std::string> lflags,
+	std::optional<Cdb> &opt_cdb
+)
+{
+	auto is_static = !profile.build_shared;
+	auto &dep = is_static ? _static : _build_shared;
+	/// 内部依赖项，只有内部的才会传入 ninja
+	std::vector<std::string> inner_deps;
+	if (!load_dep_flags(targets, imports, _static, dep, inner_deps, cflags, lflags)) {
+		return false;
+	}
+
+	if (opt_cdb) {
+		CdbItem item;
+		item.cmd = cc;
+		item.flags = filter_cflags(cflags);
+		item.files = _tm.src;
+		opt_cdb.value().push_back(item);
+	}
+	return gen_one_ninja_target_build(
+		profile_name, false, profile.build_shared,
+		cc, TargetType::Executable,
+		_tm.name, _tm.src,
+		inner_deps, cflags, lflags
+	);
+}
+
+bool Target::gen_lib(
+	std::string const &profile_name,
+	Profile const &profile,
+	std::map<std::string, std::shared_ptr<Target>> const &targets,
+	std::map<std::string, std::shared_ptr<Target>> const &imports,
+	std::string const &cc,
+	DepDesc const &dep,
+	std::vector<std::string> cflags,
+	std::vector<std::string> lflags,
+	std::optional<Cdb> &opt_cdb
+)
+{
+	auto is_static = &dep == &_static;
+	/// 内部依赖项，只有内部的才会传入 ninja
+	std::vector<std::string> inner_deps;
+	if (!load_dep_flags(targets, imports, dep, dep, inner_deps, cflags, lflags)) {
+		return false;
+	}
+
+	if (opt_cdb) {
+		CdbItem item;
+		item.cmd = cc;
+		item.flags = filter_cflags(cflags);
+		item.files = _tm.src;
+		opt_cdb.value().push_back(item);
+	}
+	return gen_one_ninja_target_build(
+		profile_name, !is_static, profile.build_shared,
+		cc, TargetType::Library,
+		_tm.name, _tm.src,
+		inner_deps, cflags, lflags
+	);
 }
 
 void Target::load_installs()
@@ -49,15 +187,41 @@ void Target::load_installs()
 bool Target::load(std::string const &name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir)
 {
 	_tm = tm;
+	_tm_dep = ProjectModel::flatten_dep(tm.dep);
+	_tm_pkgconf = ProjectModel::flatten_dep(tm.pkgconf);
+
+	_tm_cflags = ProjectModel::flatten_flags(tm.cflags);
+	_tm_lflags = ProjectModel::flatten_flags(tm.lflags);
+	_tm_cflags_static = ProjectModel::flatten_flags(tm.cflags_static);
+	_tm_lflags_static = ProjectModel::flatten_flags(tm.lflags_static);
+	_tm_cflags_shared = ProjectModel::flatten_flags(tm.cflags_shared);
+	_tm_lflags_shared = ProjectModel::flatten_flags(tm.lflags_shared);
+	_tm_cflags_private = ProjectModel::flatten_flags(tm.cflags_private);
+	_tm_lflags_private = ProjectModel::flatten_flags(tm.lflags_private);
+
+	_static.user.cflags = _tm_cflags;
+	sequence_append(_static.user.cflags, _tm_cflags_static);
+	_static.user.lflags = _tm_lflags;
+	sequence_append(_static.user.lflags, _tm_lflags_static);
+
+	_build_shared.user.cflags = _tm_cflags;
+	sequence_append(_build_shared.user.cflags, _tm_cflags_shared);
+	_build_shared.user.lflags = _tm_lflags;
+	sequence_append(_build_shared.user.lflags, _tm_lflags_shared);
+
+	_export_shared.user.cflags = _build_shared.user.cflags;
+	_export_shared.user.lflags = _build_shared.user.lflags;
+
+	sequence_append(_build_shared.user.cflags, _tm_cflags_private);
+	sequence_append(_build_shared.user.lflags, _tm_lflags_private);
+
 	if (name.size()) {
 		_tm.name = name;
 	}
 	if (_tm.type == "exe") {
 		_type = TargetType::Executable;
-	} else if (_tm.type == "slib") {
-		_type = TargetType::StaticLibrary;
-	} else if (_tm.type == "dlib") {
-		_type = TargetType::DynamicLibrary;
+	} else if (_tm.type == "lib") {
+		_type = TargetType::Library;
 	} else if (_tm.type == "phony") {
 		_type = TargetType::Phony;
 	} else if (_tm.type == "template") {
@@ -97,9 +261,14 @@ ProjectModel::TargetModel const &Target::model() const
 	return _tm;
 }
 
-std::vector<std::string> const &Target::dep() const
+std::vector<ProjectModel::DepDesc> const &Target::dep_for_build(bool shared) const
 {
-	return _dep;
+	return shared ? _build_shared.dep : _static.dep;
+}
+
+std::vector<ProjectModel::DepDesc> const &Target::dep_for_export(bool shared) const
+{
+	return shared ? _export_shared.dep : _static.dep;
 }
 
 bool Target::resolve_deps(
@@ -113,42 +282,73 @@ bool Target::resolve_deps(
 		return true;
 	}
 	_deps_resolved = true; // in case of loop
-	_dep = _tm.dep;
-	for (auto &d : _tm.dep) {
-		std::vector<std::string> indirects;
-		auto it = all_targets.find(d);
+	for (auto &d : _tm_dep) {
+		bool out = false;
+		std::vector<ProjectModel::DepDesc> for_static, for_shared;
+		auto it = all_targets.find(d.name);
 		if (it == all_targets.end()) {
-			if (auto dep = import_target(data_dirs, imports, pkgconf, d)) {
-				indirects = dep->dep();
+			if (auto dep = import_target(data_dirs, imports, pkgconf, d.name)) {
+				out = true;
+				for_static = dep->dep_for_export(false);
+				for_shared = dep->dep_for_export(true);
 			} else {
-				std::cerr << "Error: failed to resolve dep of '" << d << "'\n";
+				std::cerr << "Error: failed to resolve dep of '" << d.name << "'\n";
 				return false;
 			}
 		} else if (it->second->resolve_deps(all_targets, data_dirs, imports, pkgconf)) {
-			indirects = it->second->dep();
+			for_static = it->second->dep_for_export(false);
+			for_shared = it->second->dep_for_export(true);
 		} else {
 			return false;
 		}
-		_dep.insert(_dep.end(), indirects.begin(), indirects.end());
+
+		_static.dep.push_back(d);
+		_build_shared.dep.push_back(d);
+		if (!d.private_) {
+			_export_shared.dep.push_back(d);
+		}
+		// 间接依赖
+		if (out) {
+			if (d.static_) {
+				sequence_append(_static.dep, for_static);
+				sequence_append(_build_shared.dep, for_static);
+				if (!d.private_) {
+					sequence_append(_export_shared.dep, for_static);
+				}
+			} else {
+				sequence_append(_static.dep, for_shared);
+				sequence_append(_build_shared.dep, for_shared);
+				if (!d.private_) {
+					sequence_append(_export_shared.dep, for_shared);
+				}
+			}
+		} else {
+			sequence_append(_static.dep, for_static);
+			sequence_append(_build_shared.dep, for_shared);
+			if (!d.private_) {
+				sequence_append(_export_shared.dep, for_shared);
+			}
+		}
 	}
-	if (!load_pkgconfs(pkgconf)) {
-		return false;
-	}
-	return true;
+
+	return load_pkgconfs(pkgconf);
 }
 
 bool Target::gen(
-	std::string const &profile,
+	std::string const &profile_name,
+	Profile const &profile,
 	std::map<std::string, std::shared_ptr<Target>> const &targets,
 	std::map<std::string, std::shared_ptr<Target>> const &imports,
 	std::vector<std::filesystem::path> const &import_dirs,
 	std::optional<Cdb> &opt_cdb
-) const
+)
 {
+	bool is_lib = false;
 	switch (_type) {
 	case TargetType::Executable:
-	case TargetType::StaticLibrary:
-	case TargetType::DynamicLibrary:
+		break;
+	case TargetType::Library:
+		is_lib = true;
 		break;
 	case TargetType::Phony:
 		return true;
@@ -166,56 +366,29 @@ bool Target::gen(
 
 	std::vector<std::string> cflags;
 	std::vector<std::string> lflags;
-	cflags.push_back("-std=" + _tm.std);
-	cflags.push_back(external_cflags());
-	lflags.push_back(external_lflags());
 
-	/// 内部依赖项，只有内部的才会传入 ninja
-	std::vector<std::pair<bool, std::string>> inner_deps;
-	for (auto &d : _dep) {
-		auto it = targets.find(d);
-		if (it != targets.end()) {
-			inner_deps.push_back({it->second->type() == TargetType::StaticLibrary, d});
-		} else if (it = imports.find(d); it == imports.end()) {
-			continue;
-		}
-		// 外部依赖项
-		cflags.push_back(it->second->external_cflags());
-		lflags.push_back("-l" + it->second->name() + " " + it->second->external_lflags());
-	}
+	cflags.push_back("-std=" + _tm.std);
+
 	for (auto &path : import_dirs) {
 		auto dir = path.string();
 		cflags.push_back("-I" + dir + "/include");
 		lflags.push_back("-L" + dir + "/lib");
 	}
-	auto cflag = filter_cflags(cflags);
-	if (opt_cdb) {
-		CdbItem item;
-		item.cmd = cc;
-		item.flags = cflag;
-		item.files = _tm.src;
-		opt_cdb.value().push_back(item);
+
+	if (!is_lib) {
+		return gen_exe(profile_name, profile, targets, imports, cc, cflags, lflags, opt_cdb);
 	}
-	return gen_ninja_target_build(
-		profile,
-		cc,
-		_type,
-		_tm.name,
-		_tm.src,
-		inner_deps,
-		cflag,
-		lflags
-	);
-}
 
-std::string Target::external_cflags() const
-{
-	return std::string(Com::trim(_pkg_cflags + " " + _tm.extra_cflags));
-}
-
-std::string Target::external_lflags() const
-{
-	return std::string(Com::trim(_pkg_lflags + " " + _tm.extra_lflags));
+	if (profile.build_static) {
+		if (!gen_lib(profile_name, profile, targets, imports, cc, _static, cflags, lflags, opt_cdb)) {
+			return false;
+		}
+	}
+	if (profile.build_shared) {
+		auto &&cdb = profile.build_static ? std::optional<Cdb>() : opt_cdb;
+		return gen_lib(profile_name, profile, targets, imports, cc, _build_shared, cflags, lflags, cdb);
+	}
+	return true;
 }
 
 bool Target::apply_override(
@@ -254,13 +427,21 @@ bool Target::apply_append(std::map<std::string, std::shared_ptr<Target>> const &
 	return true;
 }
 
-void Target::append(std::shared_ptr<Target> target)
+void Target::append(std::shared_ptr<Target> target, bool include_deps)
 {
 	// append these fields
-	_tm.dep.insert(_tm.dep.begin(), target->_tm.dep.begin(), target->_tm.dep.end());
-	_tm.pkgconf.insert(_tm.pkgconf.begin(), target->_tm.pkgconf.begin(), target->_tm.pkgconf.end());
-	_tm.extra_cflags = target->_tm.extra_cflags + _tm.extra_cflags;
-	_tm.extra_lflags = target->_tm.extra_lflags + _tm.extra_lflags;
+	if (include_deps) {
+		sequence_append(_tm_dep, target->_tm_dep);
+	}
+	sequence_append(_tm_pkgconf, target->_tm_pkgconf);
+	sequence_append(_tm_cflags, target->_tm_cflags);
+	sequence_append(_tm_lflags, target->_tm_lflags);
+	sequence_append(_tm_cflags_static, target->_tm_cflags_static);
+	sequence_append(_tm_lflags_static, target->_tm_lflags_static);
+	sequence_append(_tm_cflags_shared, target->_tm_cflags_shared);
+	sequence_append(_tm_lflags_shared, target->_tm_lflags_shared);
+	sequence_append(_tm_cflags_private, target->_tm_cflags_private);
+	sequence_append(_tm_lflags_private, target->_tm_lflags_private);
 }
 
 std::shared_ptr<Target> Target::import_target(
@@ -335,22 +516,19 @@ bool Target::apply_phonys(std::map<std::string, std::shared_ptr<Target>> const &
 		return true;
 	}
 	_phony_applyed = true;
-	std::vector<std::string> dep;
-	for (auto &d : _tm.dep) {
-		if (auto it = all_phonys.find(d); it != all_phonys.end()) {
+	std::vector<ProjectModel::DepDesc> dep;
+	for (auto const &d : _tm_dep) {
+		if (auto it = all_phonys.find(d.name); it != all_phonys.end()) {
 			if (!it->second->apply_phonys(all_phonys)) {
 				return false;
 			}
-			auto &indirect = it->second->_tm;
-			dep.insert(dep.end(), indirect.dep.begin(), indirect.dep.end());
-			_tm.pkgconf.insert(_tm.pkgconf.end(), indirect.pkgconf.begin(), indirect.pkgconf.end());
-			_tm.extra_cflags = Com::join(" ", _tm.extra_cflags, indirect.extra_cflags);
-			_tm.extra_lflags = Com::join(" ", _tm.extra_lflags, indirect.extra_lflags);
+			sequence_append(dep, it->second->_tm_dep);
+			append(it->second, false);
 		} else {
 			dep.push_back(d);
 		}
 	}
-	_tm.dep = std::move(dep);
+	_tm_dep = std::move(dep);
 	return true;
 }
 
@@ -396,7 +574,11 @@ bool uninstall_list(std::filesystem::path const &p)
 	return true;
 }
 
-bool Target::install(std::filesystem::path const &prefix, std::string const &profile) const
+bool Target::install(
+	std::filesystem::path const &prefix,
+	std::string const &profile_name,
+	Profile const &profile
+) const
 {
 	std::error_code ec;
 	auto list_file_path = prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".list");
@@ -407,14 +589,43 @@ bool Target::install(std::filesystem::path const &prefix, std::string const &pro
 		}
 	}
 
+	bool is_exe = _type == TargetType::Executable;
+	bool is_lib = _type == TargetType::Library;
+	if (!is_exe && !is_lib) {
+		return false;
+	}
+
 	std::vector<std::filesystem::path> installed;
-	auto target_file = target_file_name(_tm.name, _type);
-	if (!target_file.empty()) {
-		auto dst = install_file("./build/" + profile + "/" + target_file, prefix / target_install_subdir(_type));
+	auto install_target_file = [&](std::string const &target_file)
+	{
+		auto dst = install_file(
+			"./build/" + profile_name + "/" + target_file,
+			prefix / target_install_subdir(_type)
+		);
 		if (dst.empty()) {
 			return false;
 		}
 		installed.push_back(dst);
+		return true;
+	};
+	if (is_exe) {
+		auto res = install_target_file(target_file_name(_tm.name, _type, false));
+		if (!res) {
+			return false;
+		}
+	} else {
+		if (profile.build_static) {
+			auto res = install_target_file(target_file_name(_tm.name, _type, false));
+			if (!res) {
+				return false;
+			}
+		}
+		if (profile.build_shared) {
+			auto res = install_target_file(target_file_name(_tm.name, _type, true));
+			if (!res) {
+				return false;
+			}
+		}
 	}
 	for (auto &item : _tm.install) {
 		for (auto &file : item.files) {
@@ -448,16 +659,20 @@ std::filesystem::path Target::exports(std::filesystem::path const &prefix) const
 {
 	auto tm = _tm;
 	Com::Mas::Value mas;
-	if (_type == TargetType::StaticLibrary || _type == TargetType::DynamicLibrary) {
+	if (_type == TargetType::Library) {
 		mas = Com::Mas::serialize_kvs(
 			COM_KV(tm, name),
 			COM_KV(tm, language),
 			COM_KV(tm, std),
 			COM_KV(tm, type),
-			COM_KV(tm, dep),
+			"dep", _tm_dep,
 			COM_KV(tm, pkgconf),
-			COM_KV(tm, extra_cflags),
-			COM_KV(tm, extra_lflags)
+			COM_KV(tm, cflags),
+			COM_KV(tm, lflags),
+			COM_KV(tm, cflags_static),
+			COM_KV(tm, lflags_static),
+			COM_KV(tm, cflags_shared),
+			COM_KV(tm, lflags_shared)
 		);
 	} else {
 		mas = Com::Mas::serialize_kvs(

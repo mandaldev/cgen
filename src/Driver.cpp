@@ -279,17 +279,18 @@ bool Driver::build()
 		std::cerr << "Failed to configure project\n";
 		return false;
 	}
+
+	auto succ = true;
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return _project.build_all_targets(profile);
+		succ = _project.build_all_targets(profile);
+	} else {
+		succ = _project.build_targets(profile, targets_name);
 	}
-	for (auto const &name : targets_name) {
-		if (!_project.build_target(profile, name)) {
-			std::cerr << "Aborting...\n";
-			return false;
-		}
+	if (!succ) {
+		LOG_ERROR << "Abort";
 	}
-	return true;
+	return succ;
 }
 
 bool Driver::install()
@@ -303,13 +304,19 @@ bool Driver::install()
 		std::cerr << "Error: no such profile: " << profile << "\n";
 		return false;
 	}
+
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
-		return _project.install_all_targets(profile, prefix);
+		if (!_project.install_all_targets(profile, prefix)) {
+			LOG_ERROR << "Abort";
+			return false;
+		}
+		return true;
 	}
+
 	for (auto const &name : targets_name) {
 		if (!_project.install_target(profile, prefix, name)) {
-			std::cerr << "Aborting...\n";
+			LOG_ERROR << "Abort";
 			return false;
 		}
 	}
@@ -549,12 +556,12 @@ static std::map<std::string, std::shared_ptr<Target>> load_installed_targets(
 		}
 
 		for (auto &[name, t] : targets) {
-			for (auto &d : t->dep()) {
-				auto it = targets.find(d);
+			for (auto &d : t->dep_for_build(false)) {
+				auto it = targets.find(d.name);
 				if (it == targets.end()) {
 					continue;
 				}
-				(*depend_by)[d].insert(name);
+				(*depend_by)[d.name].insert(name);
 			}
 		}
 	}
@@ -624,7 +631,10 @@ bool Driver::list()
 		std::cout << "    depends: ";
 		bool first = true;
 		std::set<std::string> deps;
-		deps.insert(it->second->dep().begin(), it->second->dep().end());
+		auto deps_for_build = it->second->dep_for_build(false);
+		for (auto const &d : deps_for_build) {
+			deps.insert(d.name);
+		}
 		for (auto const &d : deps) {
 			auto it = targets.find(d);
 			if (it == targets.end()) {

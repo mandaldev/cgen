@@ -14,6 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "ProjectModel.hpp"
+#include <string>
+#include <variant>
+
+
+std::vector<ProjectModel::DepDesc> ProjectModel::flatten_dep(std::vector<Dep> const &deps)
+{
+	std::vector<ProjectModel::DepDesc> ret;
+	for (auto &d : deps) {
+		if (auto p = std::get_if<std::string>(&d)) {
+			DepDesc &desc = ret.emplace_back();
+			desc.name = *p;
+		} else if (auto p = std::get_if<DepDesc>(&d)) {
+			ret.push_back(*p);
+		}
+	}
+	return ret;
+}
+
+std::vector<std::string> ProjectModel::flatten_flags(Flags const &flags)
+{
+	std::vector<std::string> ret;
+	if (auto p = std::get_if<std::string>(&flags)) {
+		ret.push_back(*p);
+	} else if (auto p = std::get_if<std::vector<std::string>>(&flags)) {
+		ret = *p;
+	}
+	return ret;
+}
 
 namespace Com::Mas {
 
@@ -32,13 +60,49 @@ bool deserialize(Value const &mas, ProjectModel::TargetModel::Install &v)
 template <>
 Value serialize(ProjectModel::Profile const &v)
 {
-	return serialize_kvs(COM_KV(v, cflags), COM_KV(v, lflags));
+	return serialize_kvs(
+		COM_KV(v, inherit),
+		COM_KV(v, cflags),
+		COM_KV(v, lflags),
+		COM_KV(v, cflags_private),
+		COM_KV(v, lflags_private),
+		COM_KV(v, shared)
+	);
 }
 
 template <>
 bool deserialize(Value const &mas, ProjectModel::Profile &v)
 {
-	return deserialize_kvs(mas, COM_KV(v, cflags), COM_KV(v, lflags));
+	return deserialize_kvs(
+		mas,
+		COM_KV(v, inherit),
+		COM_KV(v, cflags),
+		COM_KV(v, lflags),
+		COM_KV(v, cflags_private),
+		COM_KV(v, lflags_private),
+		COM_KV(v, shared)
+	);
+}
+
+template <>
+Value serialize(ProjectModel::DepDesc const &v)
+{
+	return serialize_kvs(
+		COM_KV(v, name),
+		"static", v.static_,
+		"private", v.private_
+	);
+}
+
+template <>
+bool deserialize(Value const &mas, ProjectModel::DepDesc &v)
+{
+	return deserialize_kvs(
+		mas,
+		COM_KV(v, name),
+		"static", v.static_,
+		"private", v.private_
+	);
 }
 
 template <>
@@ -53,8 +117,14 @@ Value serialize(ProjectModel::TargetModel const &v)
 		COM_KV(v, src),
 		COM_KV(v, dep),
 		COM_KV(v, pkgconf),
-		COM_KV(v, extra_cflags),
-		COM_KV(v, extra_lflags),
+		COM_KV(v, cflags),
+		COM_KV(v, lflags),
+		COM_KV(v, cflags_static),
+		COM_KV(v, lflags_static),
+		COM_KV(v, cflags_shared),
+		COM_KV(v, lflags_shared),
+		COM_KV(v, cflags_private),
+		COM_KV(v, lflags_private),
 		COM_KV(v, install),
 		COM_KV(v, explicit_install)
 	);
@@ -73,8 +143,14 @@ bool deserialize(Value const &mas, ProjectModel::TargetModel &v)
 		COM_KV(v, src),
 		COM_KV(v, dep),
 		COM_KV(v, pkgconf),
-		COM_KV(v, extra_cflags),
-		COM_KV(v, extra_lflags),
+		COM_KV(v, cflags),
+		COM_KV(v, lflags),
+		COM_KV(v, cflags_static),
+		COM_KV(v, lflags_static),
+		COM_KV(v, cflags_shared),
+		COM_KV(v, lflags_shared),
+		COM_KV(v, cflags_private),
+		COM_KV(v, lflags_private),
 		COM_KV(v, install),
 		COM_KV(v, explicit_install)
 	);

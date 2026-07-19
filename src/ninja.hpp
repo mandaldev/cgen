@@ -40,12 +40,14 @@
 
 /// ninja scripts extension
 static constexpr auto NINJA_BUILD_EXT = ".ninja";
+static constexpr auto SHAERD_TARGET_NINJA_BUILD_PREFIX = "so_";
 /// ninja build entry script
 static constexpr auto NINJA_BUILD = "build.ninja";
 
 static constexpr auto NINJA_GLOBAL_CFLAGS = "g_cflags";
 static constexpr auto NINJA_GLOBAL_LFLAGS = "g_lflags";
-static constexpr auto NINJA_RULE_COMPILE = "compile";
+static constexpr auto NINJA_RULE_SCOMPILE = "scompile";
+static constexpr auto NINJA_RULE_DCOMPILE = "dcompile";
 static constexpr auto NINJA_RULE_LINK_EXE = "link_exe";
 static constexpr auto NINJA_RULE_LINK_SLIB = "link_slib";
 static constexpr auto NINJA_RULE_LINK_DLIB = "link_dlib";
@@ -54,26 +56,27 @@ static constexpr auto NINJA_RULE_LINK_DLIB = "link_dlib";
 /// `cflags`: global cflags
 /// `subninja_names`: target names
 std::string gen_ninja_build(
-	std::string const &cflags,
-	std::string const &lflags,
-	std::set<std::string> const &subninja_names
+	Profile const &profile,
+	std::set<std::string> const &libs,
+	std::set<std::string> const &exes
 );
 
 std::string filter_cflags(std::vector<std::string> const &flags);
 
-/// generate build script for one target
-bool gen_ninja_target_build(
-	std::string const &profile, /// debug or release
+bool gen_one_ninja_target_build(
+	std::string const &profile_name,
+	bool shared,
+	bool build_shared,
 	std::string const &cc,
 	TargetType type,
 	std::string const &name,
 	std::set<std::filesystem::path> const &src,
-	std::vector<std::pair<bool, std::string>> const &dep, /// [implicit or not, dep target name]
-	std::string const &extra_cflags,
+	std::vector<std::string> const &inner_deps,
+	std::vector<std::string> const &extra_cflags,
 	std::vector<std::string> const &extra_lflags
 );
 
-std::string target_file_name(std::string const &target_name, TargetType type);
+std::string target_file_name(std::string const &target_name, TargetType type, bool shared);
 
 std::string target_install_subdir(TargetType type);
 

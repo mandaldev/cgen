@@ -12,18 +12,24 @@ class Project
 
 	ProjectModel _pm;
 	std::vector<std::filesystem::path> _data_dirs;
-	std::map<std::string, ProjectModel::Profile> _profile;
+	std::map<std::string, Profile> _profiles;
 
 	std::map<std::string, std::shared_ptr<Target>> _targets, _templates, _phonys, _imports;
 
 	Pkgconf _pkgconf;
 
-	bool gen(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
+	bool gen(std::string const &profile, std::optional<Cdb> &opt_cdb);
 
 	// generate target's dep first and then itself
-	bool gen_with_dep(std::string const &profile, std::shared_ptr<Target> target, std::set<std::string> &generated, std::optional<Cdb> &opt_cdb) const;
+	bool gen_with_dep(
+		std::string const &profile,
+		std::shared_ptr<Target> target,
+		std::set<std::string> &generated_libs,
+		std::set<std::string> &generated_exes,
+		std::optional<Cdb> &opt_cdb
+	);
 
-	void setup_default_profiles();
+	void setup_profiles();
 
 	bool load_target(std::string const &target_name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir);
 
@@ -54,7 +60,7 @@ public:
 
 	std::map<std::string, std::shared_ptr<Target>> const &targets() const;
 
-	std::optional<ProjectModel::Profile> get_profile(std::string const &name) const;
+	std::optional<Profile> get_profile(std::string const &name) const;
 
 	Pkgconf *pkgconf();
 
@@ -62,13 +68,15 @@ public:
 	bool load(ProjectModel const &project);
 
 	/// generate build scripts
-	bool configure(std::string const &profile, std::optional<Cdb> &opt_cdb) const;
+	bool configure(std::string const &profile, std::optional<Cdb> &opt_cdb);
 
 	/// build all targets in this project
 	bool build_all_targets(std::string const &profile);
 
 	/// build a specific target and its deps
 	bool build_target(std::string const &profile, std::string const &target_name);
+
+	bool build_targets(std::string const &profile, std::vector<std::string> const &targets);
 
 	/// install all targets in this project
 	bool install_all_targets(std::string const &profile, std::filesystem::path const &prefix);
