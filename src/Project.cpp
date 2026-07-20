@@ -200,11 +200,14 @@ bool Project::build_target(std::string const &profile_name, std::string const &t
 	return build_targets(profile_name, {target_name});
 }
 
+static const auto SHARED_INSTALL_MSG = "shared library installed, you may need run 'ldconfig' to update ld cache.";
+
 bool Project::install_all_targets(std::string const &profile_name, std::filesystem::path const &prefix)
 {
 	if (!build_all_targets(profile_name)) {
 		return false;
 	}
+	bool has_shared = false;
 	auto const &profile = _profiles[profile_name];
 	for (auto &t : _targets) {
 		if (t.second->model().explicit_install) {
@@ -213,6 +216,13 @@ bool Project::install_all_targets(std::string const &profile_name, std::filesyst
 		if (!t.second->install(prefix, profile_name, profile)) {
 			return false;
 		}
+		if (t.second->type() == TargetType::Library && profile.build_shared) {
+			has_shared = true;
+		}
+	}
+
+	if (has_shared) {
+		std::cerr << SHARED_INSTALL_MSG << std::endl;
 	}
 	return true;
 }
@@ -222,6 +232,7 @@ bool Project::install_target(std::string const &profile_name, std::filesystem::p
 	if (!build_target(profile_name, target_name)) {
 		return false;
 	}
+	bool has_shared = false;
 	auto target = _targets[target_name];
 	auto const &profile = _profiles[profile_name];
 	if (target->type() != TargetType::Executable) {
@@ -242,9 +253,19 @@ bool Project::install_target(std::string const &profile_name, std::filesystem::p
 		}
 		for (auto const &t : installed) {
 			t->install(prefix, profile_name, profile);
+			if (profile.build_shared && t->type() == TargetType::Library) {
+				has_shared = true;
+			}
 		}
 	}
-	return target->install(prefix, profile_name, profile);
+	auto res = target->install(prefix, profile_name, profile);
+	if (profile.build_shared && target->type() == TargetType::Library) {
+		has_shared = true;
+	}
+	if (has_shared) {
+		std::cerr << SHARED_INSTALL_MSG << std::endl;
+	}
+	return res;
 }
 
 bool Project::configure(std::string const &profile, std::optional<Cdb> &opt_cdb)
