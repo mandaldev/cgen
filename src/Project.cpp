@@ -1,5 +1,6 @@
 #include "Project.hpp"
 #include "ProjectModel.hpp"
+#include "Target.hpp"
 #include "common.hpp"
 #include "ninja.hpp"
 #include <Com/file.hpp>
@@ -9,6 +10,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 
 bool Project::load_target(std::string const &target_name, ProjectModel::TargetModel const &tm, std::filesystem::path const &basedir)
 {
@@ -223,15 +225,23 @@ bool Project::install_target(std::string const &profile_name, std::filesystem::p
 	auto target = _targets[target_name];
 	auto const &profile = _profiles[profile_name];
 	if (target->type() != TargetType::Executable) {
-		if (profile.build_static) {
-			for (auto d : target->dep_for_build(false)) {
+		std::set<std::shared_ptr<Target>> installed;
+		for (auto p : {
+			profile.build_static ? &target->dep_for_build(false) : nullptr,
+			profile.build_shared ? &target->dep_for_build(true) : nullptr
+		}) {
+			if (!p) {
+				continue;
+			}
+			for (auto const &d : *p) {
 				auto it = _targets.find(d.name);
 				if (it != _targets.end()) {
-					it->second->install(prefix, profile_name, profile);
+					installed.insert(it->second);
 				}
 			}
 		}
-		if (profile.build_shared) {
+		for (auto const &t : installed) {
+			t->install(prefix, profile_name, profile);
 		}
 	}
 	return target->install(prefix, profile_name, profile);
