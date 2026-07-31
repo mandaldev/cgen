@@ -666,7 +666,7 @@ std::filesystem::path Target::exports(std::filesystem::path const &prefix) const
 			COM_KV(tm, std),
 			COM_KV(tm, type),
 			"dep", _tm_dep,
-			COM_KV(tm, pkgconf),
+			"pkgconf", _tm_pkgconf,
 			COM_KV(tm, cflags),
 			COM_KV(tm, lflags),
 			COM_KV(tm, cflags_static),
