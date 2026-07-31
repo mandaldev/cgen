@@ -94,10 +94,10 @@ bool Target::load_dep_flags(
 				sequence_append(lflags, it->second->_static.pkg.lflags);
 				lflags.push_back("-l:lib" + it->second->name() + ".a");
 			} else {
-				sequence_append(cflags, it->second->_build_shared.user.cflags);
-				sequence_append(lflags, it->second->_build_shared.user.lflags);
-				sequence_append(cflags, it->second->_build_shared.pkg.cflags);
-				sequence_append(lflags, it->second->_build_shared.pkg.lflags);
+				sequence_append(cflags, it->second->_export_shared.user.cflags);
+				sequence_append(lflags, it->second->_export_shared.user.lflags);
+				sequence_append(cflags, it->second->_export_shared.pkg.cflags);
+				sequence_append(lflags, it->second->_export_shared.pkg.lflags);
 				lflags.push_back("-l" + it->second->name());
 			}
 		} else {
