@@ -148,13 +148,9 @@ bool gen_one_ninja_target_build(
 	if (inner_deps.size()) {
 		lflags.push_back("-L.");
 		deps_str = build_shared ? " ||" : "|";
-		std::set<std::string> deps;
 		for (auto &name : inner_deps) {
-			if (!deps.count(name)) {
-				deps.insert(name);
-				deps_str += " " + dep_phony_name_prefix + name;
-				lflags.push_back("-l:lib" + name + dep_ext);
-			}
+			deps_str += " " + dep_phony_name_prefix + name;
+			lflags.push_back("-l:lib" + name + dep_ext);
 		}
 	}
 	std::string out_name = target_file_name(name, type, shared);
