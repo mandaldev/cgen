@@ -532,7 +532,11 @@ bool Target::apply_phonys(std::map<std::string, std::shared_ptr<Target>> const &
 	return true;
 }
 
-static std::filesystem::path install_file(std::filesystem::path const &p, std::filesystem::path const &dir)
+static std::filesystem::path install_file(
+	std::filesystem::path const &p,
+	std::filesystem::path const &dir,
+	std::set<std::filesystem::path> &installed
+)
 {
 	std::error_code ec{};
 	std::filesystem::create_directories(dir, ec);
@@ -541,27 +545,36 @@ static std::filesystem::path install_file(std::filesystem::path const &p, std::f
 		return {};
 	}
 	auto dst = dir / p.filename();
-	std::filesystem::copy_file(p, dst, std::filesystem::copy_options::overwrite_existing, ec);
+	installed.erase(dst);
+	auto res = std::filesystem::copy_file(p, dst, std::filesystem::copy_options::update_existing, ec);
 	if (ec) {
 		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
 		return {};
+	} else if (!res) {
+		std::cerr << "Info: file is not updated, skip: " << p << "\n";
+	} else {
+		std::cerr << "Succeed to install " << p << " to " << dir << "\n";
 	}
-	std::cerr << "Succeed to install " << p << " to " << dir << "\n";
 	return dst;
 }
 
-bool uninstall_list(std::filesystem::path const &p)
+static std::set<std::filesystem::path> load_uninstall_list(std::filesystem::path const &p)
 {
 	auto opt = Com::load_mas_file(p);
 	if (!opt) {
 		std::cerr << "Error: [UNINSTALL] unable to load list file: " << p << "\n";
-		return false;
+		return {};
 	}
-	std::vector<std::filesystem::path> paths;
+	std::set<std::filesystem::path> paths;
 	if (!Com::Mas::deserialize(opt.value(), paths)) {
 		std::cerr << "Error: [UNINSTALL] not a valid list file: " << p << "\n";
-		return false;
+		return {};
 	}
+	return paths;
+}
+
+bool uninstall_list(std::set<std::filesystem::path> const &paths)
+{
 	for (auto const &p : paths) {
 		std::error_code ec;
 		std::filesystem::remove(p, ec);
@@ -569,6 +582,15 @@ bool uninstall_list(std::filesystem::path const &p)
 			std::cerr << "Error: [UNINSTALL] failed to remove file: " << p << "\n";
 			return false;
 		}
+	}
+	return true;
+}
+
+bool uninstall_list(std::filesystem::path const &p)
+{
+	auto paths = load_uninstall_list(p);
+	if (!uninstall_list(paths)) {
+		return false;
 	}
 	std::cerr << "[UNINSTALL] " << p << " uninstalled.\n";
 	return true;
@@ -582,12 +604,7 @@ bool Target::install(
 {
 	std::error_code ec;
 	auto list_file_path = prefix / "share" / "cgen" / INSTALLED_FOLDER / (name() + ".list");
-	// uninstall first
-	if (std::filesystem::exists(list_file_path, ec)) {
-		if (!uninstall_list(list_file_path)) {
-			return false;
-		}
-	}
+	auto old = load_uninstall_list(list_file_path);
 
 	bool is_exe = _type == TargetType::Executable;
 	bool is_lib = _type == TargetType::Library;
@@ -600,7 +617,8 @@ bool Target::install(
 	{
 		auto dst = install_file(
 			"./build/" + profile_name + "/" + target_file,
-			prefix / target_install_subdir(_type)
+			prefix / target_install_subdir(_type),
+			old
 		);
 		if (dst.empty()) {
 			return false;
@@ -629,20 +647,29 @@ bool Target::install(
 	}
 	for (auto &item : _tm.install) {
 		for (auto &file : item.files) {
-			auto dst = install_file(file, prefix / item.dir);
+			auto dst = install_file(file, prefix / item.dir, old);
 			if (dst.empty()) {
 				return false;
 			}
 			installed.push_back(dst);
 		}
 		for (auto &file : item.headers) {
-			auto dst = install_file(file, prefix / "include" / item.dir);
+			auto dst = install_file(file, prefix / "include" / item.dir, old);
 			if (dst.empty()) {
 				return false;
 			}
 			installed.push_back(dst);
 		}
 	}
+
+	if (!old.empty()) {
+		if (uninstall_list(old)) {
+			std::cerr << "[UNINSTALL] files left in list: " << list_file_path << "\n";
+		} else {
+			return false;
+		}
+	}
+
 	auto dst = exports(prefix);
 	if (dst.empty()) {
 		return false;
