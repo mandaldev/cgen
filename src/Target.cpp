@@ -546,6 +546,18 @@ static std::filesystem::path install_file(
 	}
 	auto dst = dir / p.filename();
 	installed.erase(dst);
+	if (std::filesystem::is_symlink(p, ec)) {
+		if (std::filesystem::exists(dst, ec)) {
+			std::filesystem::remove(dst, ec);
+		}
+		std::filesystem::copy_symlink(p, dst, ec);
+		if (ec) {
+			std::cerr << "Error: failed to install symlink " << p << ", error: " << ec << "\n";
+			return {};
+		}
+		std::cerr << "Succeed to install symlink " << p << " to " << dir << "\n";
+		return dst;
+	}
 	auto res = std::filesystem::copy_file(p, dst, std::filesystem::copy_options::update_existing, ec);
 	if (ec) {
 		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
