@@ -6,7 +6,7 @@
 
 using namespace std::literals;
 
-bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, const void *data)
+bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, void *data)
 {
 	auto self = (Pkgconf *)data;
 	self->on_pkgconf_error(msg, client);

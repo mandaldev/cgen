@@ -24,7 +24,7 @@ class Pkgconf
 
 	std::map<std::string, PkgInfo> _pkgs; // cached pkg infos
 
-	friend bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, const void *data);
+	friend bool pkgconf_error_handler(const char *msg, const pkgconf_client_t *client, void *data);
 
 	void on_pkgconf_error(std::string const &msg, pkgconf_client_t const *client);
 
