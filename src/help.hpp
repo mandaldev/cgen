@@ -10,6 +10,7 @@ commands:
   help      help message
   build     build target
   install   install target
+  uninstall uninstall target
   project   gen new C/C++ project
   class     gen new C++ class source files (CLASS.cpp and CLASS.hpp)
   cpp       gen new C++ source file
