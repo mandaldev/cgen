@@ -27,7 +27,7 @@
       ]
 
       dep [
-        "Com"
+        { name "Com" static "true" }
       ]
 
       install [
