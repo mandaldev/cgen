@@ -204,9 +204,9 @@ static const auto SHARED_INSTALL_MSG = "shared library installed, you may need r
 
 bool Project::install_all_targets(std::string const &profile_name, std::filesystem::path const &prefix)
 {
-	if (!build_all_targets(profile_name)) {
-		return false;
-	}
+	// if (!build_all_targets(profile_name)) {
+	// 	return false;
+	// }
 	bool has_shared = false;
 	auto const &profile = _profiles[profile_name];
 	for (auto &t : _targets) {
@@ -229,9 +229,9 @@ bool Project::install_all_targets(std::string const &profile_name, std::filesyst
 
 bool Project::install_target(std::string const &profile_name, std::filesystem::path const &prefix, std::string const &target_name)
 {
-	if (!build_target(profile_name, target_name)) {
-		return false;
-	}
+	// if (!build_target(profile_name, target_name)) {
+	// 	return false;
+	// }
 	bool has_shared = false;
 	auto target = _targets[target_name];
 	auto const &profile = _profiles[profile_name];
