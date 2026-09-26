@@ -8,6 +8,7 @@
 #include <Com/Mas/serialize.hpp>
 #include <Com/Xo/exec.hpp>
 #include <Com/file.hpp>
+#include <Com/system.hpp>
 #include <Com/log.hpp>
 #include <filesystem>
 #include <fstream>
@@ -263,6 +264,16 @@ bool Driver::help(std::string const &cmd)
 
 bool Driver::build()
 {
+	{
+		unsigned uid = 0;
+		Com::getuid(nullptr, &uid);
+		auto passwd = Com::get_passwd();
+		if (passwd[uid].name == "root" && !_cmdline.has_switch("as_root")) {
+			std::cerr << "Look like you are runing build as root user, this is not allowed. "
+			"You can add '--as_root' to overwrite this.";
+			return false;
+		}
+	}
 	if (!load_project()) {
 		return false;
 	}
