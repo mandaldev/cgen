@@ -522,14 +522,15 @@ bool Driver::gen_files(
 static std::set<std::string> search_installed(std::filesystem::path const &install_dir)
 {
 	std::set<std::string> names;
-	for (auto f : std::filesystem::directory_iterator(install_dir)) {
+	for (auto const &f : std::filesystem::directory_iterator(install_dir)) {
 		if (f.is_directory()) {
 			continue;
 		}
-		auto name = f.path().filename().string();
-		if (name.size() <= 5 || name.substr(name.size() - 5) != ".list") {
+		auto const &p = f.path();
+		if (p.extension().string() != ".list") {
 			continue;
 		}
+		auto name = p.filename().string();
 		name = name.substr(0, name.size() - 5);
 		names.insert(name);
 	}
