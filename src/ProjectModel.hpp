@@ -85,8 +85,11 @@ struct ProjectModel
 		/// private 参数只在编译动态库时有效，且不会被导出的
 		Flags lflags, lflags_static, lflags_shared, lflags_private;
 
+		/// - 对于 headers，安装路径为 `$PREFIX/include/<dir>/<header>`
+		/// - 对于 files，安装路径为 `$PREFIX/<dir>/<file>` ，file 可以是目录
 		struct Install
 		{
+			/// 必须为相对路径
 			std::string dir;
 			std::set<std::filesystem::path> files;
 			std::set<std::filesystem::path> headers;

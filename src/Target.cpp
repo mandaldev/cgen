@@ -10,6 +10,7 @@
 #include <iostream>
 #include <optional>
 #include <string>
+#include <system_error>
 #include <vector>
 
 static const auto LANG_C = "c";
@@ -608,6 +609,20 @@ bool uninstall_list(std::filesystem::path const &p)
 	return true;
 }
 
+static void list_dir_deep(std::filesystem::path const &dir, std::vector<std::filesystem::path> &files)
+{
+	std::error_code ec;
+	auto di = std::filesystem::recursive_directory_iterator(dir, ec);
+	if (ec) {
+		return;
+	}
+	for (auto const &e : di) {
+		if (e.is_symlink(ec) || e.is_regular_file(ec)) {
+			files.push_back(e.path());
+		}
+	}
+}
+
 bool Target::install(
 	std::filesystem::path const &prefix,
 	std::string const &profile_name,
@@ -659,11 +674,25 @@ bool Target::install(
 	}
 	for (auto &item : _tm.install) {
 		for (auto &file : item.files) {
-			auto dst = install_file(file, prefix / item.dir, old);
-			if (dst.empty()) {
-				return false;
+			std::vector<std::filesystem::path> files;
+			auto stat = std::filesystem::symlink_status(file, ec);
+			if (!ec && std::filesystem::is_directory(stat)) {
+				list_dir_deep(file, files);
+			} else {
+				files.push_back(file);
 			}
-			installed.push_back(dst);
+			for (auto const &p : files) {
+				auto rel = p.lexically_relative(file.parent_path());
+				std::filesystem::path dir = item.dir;
+				if (rel.has_parent_path()) {
+					dir /= rel.parent_path();
+				}
+				auto dst = install_file(p, prefix / dir, old);
+				if (dst.empty()) {
+					return false;
+				}
+				installed.push_back(dst);
+			}
 		}
 		for (auto &file : item.headers) {
 			auto dst = install_file(file, prefix / "include" / item.dir, old);

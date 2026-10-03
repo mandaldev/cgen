@@ -32,12 +32,9 @@
 
       install [
         {
-          dir "share/cgen/licenses"
+          dir "share"
           files [
-            "share/cgen/licenses/GPLv3"
-            "share/cgen/licenses/GPLv3.header"
-            "share/cgen/licenses/LGPLv3"
-            "share/cgen/licenses/LGPLv3.header"
+            "assets/cgen"
           ]
         }
       ]
