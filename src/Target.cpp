@@ -727,7 +727,7 @@ bool Target::install(
 	}
 
 	if (ignored_count) {
-		std::cerr << "Info]: " << ignored_count << " not updated files are skipped\n";
+		std::cerr << "Info: " << ignored_count << " not updated files are skipped\n";
 	}
 	auto dst = exports(prefix);
 	if (dst.empty()) {
