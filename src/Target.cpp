@@ -551,6 +551,12 @@ static std::filesystem::path install_file(
 	auto dst = dir / p.filename();
 	installed.erase(dst);
 	if (std::filesystem::is_symlink(p, ec)) {
+		if (std::filesystem::is_symlink(dst, ec)
+		&& std::filesystem::read_symlink(p, ec) == std::filesystem::read_symlink(dst, ec)
+		&& !ec) {
+			ignored = true;
+			return dst;
+		}
 		if (std::filesystem::exists(dst, ec)) {
 			std::filesystem::remove(dst, ec);
 		}
