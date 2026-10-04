@@ -6,6 +6,7 @@
 #include <Com/file.hpp>
 #include <Com/log.hpp>
 #include <Com/string.hpp>
+#include <cstddef>
 #include <filesystem>
 #include <iostream>
 #include <optional>
@@ -536,9 +537,11 @@ bool Target::apply_phonys(std::map<std::string, std::shared_ptr<Target>> const &
 static std::filesystem::path install_file(
 	std::filesystem::path const &p,
 	std::filesystem::path const &dir,
-	std::set<std::filesystem::path> &installed
+	std::set<std::filesystem::path> &installed,
+	bool &ignored
 )
 {
+	ignored = false;
 	std::error_code ec{};
 	std::filesystem::create_directories(dir, ec);
 	if (ec) {
@@ -564,7 +567,8 @@ static std::filesystem::path install_file(
 		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
 		return {};
 	} else if (!res) {
-		std::cerr << "Info: file is not updated, skip: " << p << "\n";
+		ignored = true;
+		// std::cerr << "Info: file is not updated, skip: " << p << "\n";
 	} else {
 		std::cerr << "Succeed to install " << p << " to " << dir << "\n";
 	}
@@ -639,16 +643,21 @@ bool Target::install(
 		return false;
 	}
 
+	bool ignored = false;
+	size_t ignored_count = 0;
 	std::vector<std::filesystem::path> installed;
 	auto install_target_file = [&](std::string const &target_file)
 	{
 		auto dst = install_file(
 			"./build/" + profile_name + "/" + target_file,
 			prefix / target_install_subdir(_type),
-			old
+			old, ignored
 		);
 		if (dst.empty()) {
 			return false;
+		}
+		if (ignored) {
+			ignored_count += 1;
 		}
 		installed.push_back(dst);
 		return true;
@@ -687,17 +696,23 @@ bool Target::install(
 				if (rel.has_parent_path()) {
 					dir /= rel.parent_path();
 				}
-				auto dst = install_file(p, prefix / dir, old);
+				auto dst = install_file(p, prefix / dir, old, ignored);
 				if (dst.empty()) {
 					return false;
+				}
+				if (ignored) {
+					ignored_count += 1;
 				}
 				installed.push_back(dst);
 			}
 		}
 		for (auto &file : item.headers) {
-			auto dst = install_file(file, prefix / "include" / item.dir, old);
+			auto dst = install_file(file, prefix / "include" / item.dir, old, ignored);
 			if (dst.empty()) {
 				return false;
+			}
+			if (ignored) {
+				ignored_count += 1;
 			}
 			installed.push_back(dst);
 		}
@@ -711,6 +726,9 @@ bool Target::install(
 		}
 	}
 
+	if (ignored_count) {
+		std::cerr << "Info]: " << ignored_count << " not updated files are skipped\n";
+	}
 	auto dst = exports(prefix);
 	if (dst.empty()) {
 		return false;
