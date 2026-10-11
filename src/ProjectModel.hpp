@@ -98,14 +98,15 @@ struct ProjectModel
 		/// 是否必须手动安装
 		bool explicit_install = false;
 	};
+	/// target model or mas file path
 	using Target = std::variant<TargetModel, std::string>;
-	/// <name, target/include>
+	/// <name, target>
 	using TargetMap = std::map<std::string, Target>;
-	/// <target/include>
+	/// <target>
 	using TargetArray = std::vector<Target>;
-
-	using Targets = std::variant<TargetArray, TargetMap>;
 	/// array or map
+	using Targets = std::variant<TargetArray, TargetMap>;
+
 	Targets target;
 };
 
