@@ -212,7 +212,7 @@ bool gen_one_ninja_target_build(
 	std::ofstream fs;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
-		std::cerr << "Failed to open file " << fname << "\n";
+		std::cerr << "[Error] failed to open file " << fname << "\n";
 		return false;
 	}
 	fs << script;

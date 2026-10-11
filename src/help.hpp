@@ -67,7 +67,7 @@ options:
   --desc=DESC              description about project
   --lang=c|c++
   --std=c11|c++17|...
-  --type=exe|slib|dlib   add a specific target type in new project
+  --type=exe|lib           add a specific target type in new project
 )";
 
 static const auto HELP_FILES = R"(cgen class|cpp|hpp|c|h NAME... [OPTION]

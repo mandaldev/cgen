@@ -40,7 +40,7 @@ bool gen_cdb_file(Cdb const &cdb, std::filesystem::path const &dir)
 	std::string fname = dir / "compile_commands.json";
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
-		std::cerr << "Failed to open file " << fname << "\n";
+		std::cerr << "[Error] failed to open file " << fname << "\n";
 		return false;
 	}
 

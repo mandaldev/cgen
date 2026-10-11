@@ -9,7 +9,6 @@
 #include <Com/Xo/exec.hpp>
 #include <Com/file.hpp>
 #include <Com/system.hpp>
-#include <Com/log.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -83,7 +82,7 @@ static std::filesystem::path files_option_dir(Com::CommandLine const &cmdline, s
 	std::error_code ec{};
 	h_dir = std::filesystem::canonical(h_dir.is_relative() ? cwd / h_dir : h_dir, ec);
 	if (ec) {
-		std::cerr << "Error: invalid dir path: " << dir << '\n';
+		std::cerr << "[Error] invalid dir path: " << dir << '\n';
 		return {};
 	}
 	return h_dir;
@@ -125,7 +124,7 @@ static std::filesystem::path validate_file_path(std::filesystem::path const &dir
 	auto file_path = dir / file_name;
 	std::error_code ec{};
 	if (std::filesystem::exists(file_path, ec) || ec) {
-		std::cerr << "Warning: ignore generating " << file_path << ": file already exists!\n";
+		std::cerr << "[Warning] ignore generating " << file_path << ": file already exists!\n";
 		return {};
 	}
 	return file_path;
@@ -135,10 +134,10 @@ static bool write_file(std::filesystem::path const &path, std::string const &buf
 {
 	std::ofstream ofs(path);
 	if (!ofs.write(buf.data(), (std::streamsize)buf.size())) {
-		std::cerr << "Error: failed to write file: " << path << '\n';
+		std::cerr << "[Error] failed to write file: " << path << '\n';
 		return false;
 	}
-	std::cerr << "Succeed: file " << path << " generated\n";
+	std::cerr << "file " << path << " generated\n";
 	return true;
 }
 
@@ -196,7 +195,7 @@ bool Driver::run()
 		return true;
 	}
 	if (!_cmdline.is_valid()) {
-		std::cerr << "Invalid option or argument, see Usage\n\n";
+		std::cerr << "[Error] Invalid option or argument, see Usage\n\n";
 		help("");
 		return false;
 	}
@@ -205,7 +204,7 @@ bool Driver::run()
 	if (it != _cmd.end()) {
 		return it->second();
 	}
-	std::cerr << "Unknown commond: " << cmd << "\n";
+	std::cerr << "[Error] Unknown commond: " << cmd << "\n";
 	return false;
 }
 
@@ -213,25 +212,25 @@ bool Driver::load_project()
 {
 	auto res = chroot();
 	if (!res.first) {
-		std::cerr << "Not a cgen project path\n";
+		std::cerr << "[Error] not a cgen project path\n";
 		return false;
 	}
 	_old_cwd = res.second;
 
 	auto opt_mas = Com::load_mas_file(PROJECT_MAS);
 	if (!opt_mas.has_value() || !opt_mas.value().is_map()) {
-		std::cerr << "Not a valid cgen project file\n";
+		std::cerr << "[Error] not a valid cgen project file\n";
 		return false;
 	}
 	auto &mas = opt_mas.value();
 	ProjectModel pm;
 	if (!Com::Mas::deserialize(mas, pm)) {
-		std::cerr << "Failed to load cgen project file\n";
+		std::cerr << "[Error] failed to load cgen project file\n";
 		return false;
 	}
 
 	if (!_project.load(pm)) {
-		std::cerr << "Failed to load cgen project file\n";
+		std::cerr << "[Error] failed to load cgen project file\n";
 		return false;
 	}
 	_has_project = true;
@@ -283,11 +282,11 @@ bool Driver::build()
 	}
 	std::string profile = _cmdline.get_switch("profile").value_or("debug");
 	if (!_project.get_profile(profile).has_value()) {
-		std::cerr << "Error: no such profile: " << profile << "\n";
+		std::cerr << "[Error] no such profile: " << profile << "\n";
 		return false;
 	}
 	if (!_project.configure(profile, opt_cdb)) {
-		std::cerr << "Failed to configure project\n";
+		std::cerr << "[Error] failed to configure project\n";
 		return false;
 	}
 
@@ -299,7 +298,7 @@ bool Driver::build()
 		succ = _project.build_targets(profile, targets_name);
 	}
 	if (!succ) {
-		LOG_ERROR << "Abort";
+		std::cerr << "[Error] abort\n";
 	}
 	return succ;
 }
@@ -312,14 +311,14 @@ bool Driver::install()
 	std::filesystem::path prefix = _cmdline.get_switch("prefix").value_or("/usr/local");
 	std::string profile = _cmdline.get_switch("profile").value_or("debug");
 	if (!_project.get_profile(profile).has_value()) {
-		std::cerr << "Error: no such profile: " << profile << "\n";
+		std::cerr << "[Error] no such profile: " << profile << "\n";
 		return false;
 	}
 
 	auto targets_name = _cmdline.get_arguments();
 	if (targets_name.empty()) {
 		if (!_project.install_all_targets(profile, prefix)) {
-			LOG_ERROR << "Abort";
+			std::cerr << "[Error] abort\n";
 			return false;
 		}
 		return true;
@@ -327,7 +326,7 @@ bool Driver::install()
 
 	for (auto const &name : targets_name) {
 		if (!_project.install_target(profile, prefix, name)) {
-			LOG_ERROR << "Abort";
+			std::cerr << "[Error] abort\n";
 			return false;
 		}
 	}
@@ -355,13 +354,13 @@ bool Driver::gen_project(std::string const &name)
 {
 	auto lang = _cmdline.get_switch("lang").value_or("c++");
 	if (lang != "c++" && lang != "c") {
-		std::cerr << "Error: wrong 'lang' type, only 'c' or 'c++' supported!\n";
+		std::cerr << "[Error] wrong 'lang' type, only 'c' or 'c++' supported!\n";
 		return false;
 	}
 	auto std = _cmdline.get_switch("std").value_or("c++17");
 	auto type = _cmdline.get_switch("type").value_or("exe");
-	if (type != "exe" && type != "slib" && type != "dlib") {
-		std::cerr << "Error: wrong 'target' type, only 'exe', 'slib' or 'dlib' supported!\n";
+	if (type != "exe" && type != "lib") {
+		std::cerr << "[Error] wrong 'target' type, only 'exe', 'lib' supported!\n";
 		return false;
 	}
 	struct Files
@@ -374,7 +373,7 @@ bool Driver::gen_project(std::string const &name)
 	std::vector<Files> files;
 	if (type == "exe") {
 		files.push_back(Files{"main", lang == "c" ? "c" : "cpp", false, MAIN_CODE});
-	} else if (type == "slib" || type == "dlib") {
+	} else if (type == "lib") {
 		files.push_back(Files{name, lang == "c" ? "c" : "cpp", true, LIB_DECL_CODE});
 		files.push_back(Files{name, lang == "c" ? "h" : "hpp", true, LIB_HEAD_CODE});
 	}
@@ -405,13 +404,13 @@ bool Driver::gen_project(std::string const &name)
 	_file_dir /= name;
 	std::error_code ec{};
 	if (!std::filesystem::create_directory(_file_dir, ec) || ec) {
-		std::cerr << "Error: failed to create project directory: " << ec << "\n";
+		std::cerr << "[Error] failed to create project directory: " << ec << "\n";
 		return false;
 	}
 
 	std::filesystem::current_path(_file_dir, ec);
 	if (ec) {
-		std::cerr << "Error: failed cd to project directory: " << ec << "\n";
+		std::cerr << "[Error] failed cd to project directory: " << ec << "\n";
 		return false;
 	}
 	if (!write_file(_file_dir / "project.mas", cgen)) {
@@ -430,7 +429,7 @@ bool Driver::gen_project(std::string const &name)
 
 	auto src = _file_dir / "src";
 	if (!std::filesystem::create_directory(src, ec) || ec) {
-		std::cerr << "Error: failed to create src directory: " << ec << "\n";
+		std::cerr << "[Error] failed to create src directory: " << ec << "\n";
 		return false;
 	}
 
@@ -595,7 +594,7 @@ bool Driver::uninstall()
 	for (auto &name : _cmdline.get_arguments()) {
 		auto it = targets.find(name);
 		if (it == targets.end()) {
-			LOG_ERROR << "Failed to find target: " << name;
+			std::cerr << "[Error] failed to find target: " << name << "\n";
 			return false;
 		}
 		to_be_unintsall.insert(name);
@@ -619,9 +618,9 @@ bool Driver::list()
 
 	std::set<std::string> names = search_installed(install_dir);;
 	if (_cmdline.get_arguments().empty()) {
-		std::cout << "targets installed under " << prefix << ":\n";
+		std::cerr << "targets installed under " << prefix << ":\n";
 		for (auto const &name : names) {
-			std::cout << name << "\n";
+			std::cerr << name << "\n";
 		}
 		return true;
 	}
@@ -632,15 +631,15 @@ bool Driver::list()
 	for (auto &name : _cmdline.get_arguments()) {
 		auto it = targets.find(name);
 		if (it == targets.end()) {
-			LOG_ERROR << "Failed to find target: " << name;
+			std::cerr << "[Error] failed to find target: " << name << "\n";
 			return false;
 		}
 		auto const &m = it->second->model();
-		std::cout << "     Target: " << m.name << "\n";
-		std::cout << "       Type: " << m.type << "\n";
-		std::cout << "        std: " << m.std << "\n";
-		std::cout << "   language: " << m.language << "\n";
-		std::cout << "    depends: ";
+		std::cerr << "     Target: " << m.name << "\n";
+		std::cerr << "       Type: " << m.type << "\n";
+		std::cerr << "        std: " << m.std << "\n";
+		std::cerr << "   language: " << m.language << "\n";
+		std::cerr << "    depends: ";
 		bool first = true;
 		std::set<std::string> deps;
 		auto deps_for_build = it->second->dep_for_build(false);
@@ -652,22 +651,22 @@ bool Driver::list()
 			if (it == targets.end()) {
 				continue;
 			}
-			std::cout << (first ? "" : ", ") << d;
+			std::cerr << (first ? "" : ", ") << d;
 			first = false;
 		}
-		std::cout << "\n";
+		std::cerr << "\n";
 
 		first = true;
 		auto it2 = depend_by.find(name);
 		if (it2 == depend_by.end()) {
 			continue;
 		}
-		std::cout << "depended by: ";
+		std::cerr << "depended by: ";
 		for (auto const &d : it2->second) {
-			std::cout << (first ? "" : ", ") << d;
+			std::cerr << (first ? "" : ", ") << d;
 			first = false;
 		}
-		std::cout << "\n";
+		std::cerr << "\n";
 	}
 	return true;
 }

@@ -4,7 +4,6 @@
 #include "common.hpp"
 #include "ninja.hpp"
 #include <Com/file.hpp>
-#include <Com/log.hpp>
 #include <Com/string.hpp>
 #include <cassert>
 #include <filesystem>
@@ -16,7 +15,7 @@ bool Project::load_target(std::string const &target_name, ProjectModel::TargetMo
 {
 	auto target = std::make_shared<Target>();
 	if (!target->load(target_name, tm, basedir)) {
-		std::cerr << "Load target failed\n";
+		std::cerr << "[Error] load target failed\n";
 		return false;
 	}
 	auto name = target->name();
@@ -26,10 +25,10 @@ bool Project::load_target(std::string const &target_name, ProjectModel::TargetMo
 			dst.insert({target->name(), target});
 			return true;
 		} else {
-			std::cerr << "Target must have unique name: " << name << "\n";
+			std::cerr << "[Error] target must have unique name: " << name << "\n";
 		}
 	} else {
-		std::cerr << "Target name must be non-empty string\n";
+		std::cerr << "[Error] target name must be non-empty string\n";
 	}
 	return false;
 }
@@ -42,19 +41,19 @@ bool Project::load_target(std::string const &target_name, ProjectModel::TargetMo
 bool Project::load_target(std::string const &target_name, std::string const &include)
 {
 	if (include.empty()) {
-		std::cerr << "member of 'target' must be empty string\n";
+		std::cerr << "[Error] path of target file is not pecified: " << target_name << "\n";
 		return false;
 	}
 	std::filesystem::path path = include;
 	auto opt_mas = Com::load_mas_file(path);
 	if (!opt_mas) {
-		std::cerr << "Error: not a valid mas file: " << path << '\n';
+		std::cerr << "[Error] not a valid mas file: " << path << '\n';
 		return false;
 	}
 	ProjectModel::TargetModel tm;
 	auto &mas = opt_mas.value();
 	if (!Com::Mas::deserialize(mas, tm)) {
-		std::cerr << "Error: must be a map: " << path << '\n';
+		std::cerr << "[Error] must be a map: " << path << '\n';
 		return false;
 	}
 	return load_target(target_name, tm, path.parent_path());
@@ -175,7 +174,7 @@ bool Project::build_targets(std::string const &profile_name, std::vector<std::st
 	for (auto &name : targets) {
 		auto it = _targets.find(name);
 		if (it == _targets.end()) {
-			LOG_ERROR << "no such target: " << name;
+			std::cerr << "[Error] no such target: " << name << "\n";
 			return false;
 		}
 		if (it->second->type() == TargetType::Executable) {
@@ -188,7 +187,8 @@ bool Project::build_targets(std::string const &profile_name, std::vector<std::st
 				Com::join(" ", names, target_file_name(name, it->second->type(), false));
 			}
 		} else {
-			LOG_ERROR << "no such target type: " << name << " of " << (int)it->second->type();
+			std::cerr << "[Error] no such target type: " << name
+				<< " of " << (int)it->second->type() << "\n";
 			return false;
 		}
 	}
@@ -321,7 +321,7 @@ bool Project::gen_with_dep(
 				if (_imports.count(d.name)) {
 					continue;
 				}
-				std::cerr << "Error: no target named " << d.name << " found\n";
+				std::cerr << "[Error] no target named " << d.name << " found\n";
 				return false;
 			}
 			if (!gen_with_dep(profile_name, it->second, generated_libs, generated_exes, opt_cdb)) {
@@ -397,7 +397,7 @@ void Project::setup_profiles()
 			if (auto it = _profiles.find(p.inherit); it != _profiles.end()) {
 				tmp = it->second;
 			} else {
-				LOG_WARN << "there is no build in profile named: " << p.inherit;
+				std::cerr << "[Warning] there is no buildin profile named: " << p.inherit << "\n";
 			}
 		}
 		sequence_append(tmp.cflags, _pm.flatten_flags(p.cflags));
@@ -470,7 +470,7 @@ bool Project::gen(std::string const &profile_name, std::optional<Cdb> &opt_cdb)
 	std::string fname = "./build/" + profile_name + '/' + NINJA_BUILD;
 	fs.open(fname, std::ios_base::out | std::ios_base::trunc);
 	if (fs.fail()) {
-		std::cerr << "Failed to open file " << fname << "\n";
+		std::cerr << "[Error] failed to open file " << fname << "\n";
 		return false;
 	}
 	fs << script;

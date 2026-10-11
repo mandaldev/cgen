@@ -34,7 +34,7 @@ bool Target::load_pkgconfs(Pkgconf &pkgconf)
 {
 	for (auto &p : _tm_pkgconf) {
 		if (!pkgconf.find(p.name)) {
-			std::cerr << "Error: pkg-config for '" << p.name << "' failed: can't find pkg\n";
+			std::cerr << "[Error] failed to find '" << p.name << "' by pkgconf\n";
 			return false;
 		}
 		auto cflags = pkgconf.cflags(p.name, p.static_);
@@ -229,7 +229,7 @@ bool Target::load(std::string const &name, ProjectModel::TargetModel const &tm, 
 	} else if (_tm.type == "template") {
 		_type = TargetType::Template;
 	} else {
-		std::cerr << "Unknown target type: " << _tm.type << "\n";
+		std::cerr << "[Error] unknown target type: " << _tm.type << "\n";
 		return false;
 	}
 	if (LANG_C_SET.count(_tm.language)) {
@@ -237,7 +237,7 @@ bool Target::load(std::string const &name, ProjectModel::TargetModel const &tm, 
 	} else if (LANG_CPP_SET.count(_tm.language)) {
 		_tm.language = LANG_CPP;
 	} else if (_type != TargetType::Phony && _type != TargetType::Template && _tm.template_.empty()) {
-		std::cerr << "Unknown language: " << _tm.language << "\n";
+		std::cerr << "[Error] unknown language: " << _tm.language << "\n";
 		return false;
 	}
 
@@ -294,7 +294,7 @@ bool Target::resolve_deps(
 				for_static = dep->dep_for_export(false);
 				for_shared = dep->dep_for_export(true);
 			} else {
-				std::cerr << "Error: failed to resolve dep of '" << d.name << "'\n";
+				std::cerr << "[Error] failed to resolve dep of '" << d.name << "'\n";
 				return false;
 			}
 		} else if (it->second->resolve_deps(all_targets, data_dirs, imports, pkgconf)) {
@@ -405,7 +405,7 @@ bool Target::apply_override(
 		}
 		auto it = all_templates.find(temp);
 		if (it == all_templates.end()) {
-			std::cerr << "Error: Template not found: " << _tm.template_ << "\n";
+			std::cerr << "[Error] Template not found: " << _tm.template_ << "\n";
 			return false;
 		}
 		field(_tm) = field(it->second->_tm);
@@ -420,7 +420,7 @@ bool Target::apply_append(std::map<std::string, std::shared_ptr<Target>> const &
 	while (temp.size()) {
 		auto it = all_templates.find(temp);
 		if (it == all_templates.end()) {
-			std::cerr << "Error: Template not found: " << _tm.template_ << "\n";
+			std::cerr << "[Error] Template not found: " << _tm.template_ << "\n";
 			return false;
 		}
 		append(it->second);
@@ -459,17 +459,17 @@ std::shared_ptr<Target> Target::import_target(
 	}
 	auto text = load_runtime_file(data_dirs, INSTALLED_FOLDER / (name + ".mas"));
 	if (text.empty()) {
-		std::cerr << "Error: external dep not found: " << name << '\n';
+		std::cerr << "[Error] external dep not found: " << name << '\n';
 		return {};
 	}
 	ProjectModel::TargetModel tm;
 	if (!Com::Mas::deserialize(Com::Mas::decode(text).value_or(""), tm)) {
-		std::cerr << "Error: failed to load external dep: " << name << '\n';
+		std::cerr << "[Error] failed to load external dep: " << name << '\n';
 		return {};
 	}
 	auto target = std::make_shared<Target>();
 	if (!target->load("", tm)) {
-		std::cerr << "Error: failed to load external dep: " << name << '\n';
+		std::cerr << "[Error] failed to load external dep: " << name << '\n';
 		return {};
 	}
 	if (!target->resolve_deps({}, data_dirs, imports, pkgconf)) {
@@ -487,7 +487,7 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 	}
 	auto it = all_templates.find(_tm.template_);
 	if (it == all_templates.end()) {
-		std::cerr << "Error: Template not found: " << _tm.template_ << "\n";
+		std::cerr << "[Error] template not found: " << _tm.template_ << "\n";
 		return false;
 	}
 
@@ -495,14 +495,14 @@ bool Target::Target::apply_templates(std::map<std::string, std::shared_ptr<Targe
 		return false;
 	}
 	if (_tm.language.empty()) {
-		std::cerr << "Error: target's language field not specified, no templates applyed\n";
+		std::cerr << "[Error] target's language field not specified, no templates applyed\n";
 		return false;
 	}
 	if (!apply_override(all_templates, &ProjectModel::TargetModel::std)) {
 		return false;
 	}
 	if (_tm.std.empty()) {
-		std::cerr << "Error: target's std field not specified, no templates applyed\n";
+		std::cerr << "[Error] target's std field not specified, no templates applyed\n";
 		return false;
 	}
 
@@ -545,7 +545,7 @@ static std::filesystem::path install_file(
 	std::error_code ec{};
 	std::filesystem::create_directories(dir, ec);
 	if (ec) {
-		std::cerr << "Error: failed to create directory " << dir << ", error: " << ec << "\n";
+		std::cerr << "[Error] failed to create directory " << dir << ", error: " << ec << "\n";
 		return {};
 	}
 	auto dst = dir / p.filename();
@@ -562,7 +562,7 @@ static std::filesystem::path install_file(
 		}
 		std::filesystem::copy_symlink(p, dst, ec);
 		if (ec) {
-			std::cerr << "Error: failed to install symlink " << p << ", error: " << ec << "\n";
+			std::cerr << "[Error] failed to install symlink " << p << ", error: " << ec << "\n";
 			return {};
 		}
 		std::cerr << "Succeed to install symlink " << p << " to " << dir << "\n";
@@ -570,11 +570,10 @@ static std::filesystem::path install_file(
 	}
 	auto res = std::filesystem::copy_file(p, dst, std::filesystem::copy_options::update_existing, ec);
 	if (ec) {
-		std::cerr << "Error: failed to install file " << p << ", error: " << ec << "\n";
+		std::cerr << "[Error] failed to install file " << p << ", error: " << ec << "\n";
 		return {};
 	} else if (!res) {
 		ignored = true;
-		// std::cerr << "Info: file is not updated, skip: " << p << "\n";
 	} else {
 		std::cerr << "Succeed to install " << p << " to " << dir << "\n";
 	}
@@ -585,12 +584,12 @@ static std::set<std::filesystem::path> load_uninstall_list(std::filesystem::path
 {
 	auto opt = Com::load_mas_file(p);
 	if (!opt) {
-		std::cerr << "Error: [UNINSTALL] unable to load list file: " << p << "\n";
+		std::cerr << "[Warning] unable to load list file: " << p << "\n";
 		return {};
 	}
 	std::set<std::filesystem::path> paths;
 	if (!Com::Mas::deserialize(opt.value(), paths)) {
-		std::cerr << "Error: [UNINSTALL] not a valid list file: " << p << "\n";
+		std::cerr << "[Warning] not a valid list file: " << p << "\n";
 		return {};
 	}
 	return paths;
@@ -602,7 +601,7 @@ bool uninstall_list(std::set<std::filesystem::path> const &paths)
 		std::error_code ec;
 		std::filesystem::remove(p, ec);
 		if (ec) {
-			std::cerr << "Error: [UNINSTALL] failed to remove file: " << p << "\n";
+			std::cerr << "[Error] failed to remove file: " << p << "\n";
 			return false;
 		}
 	}
@@ -615,7 +614,7 @@ bool uninstall_list(std::filesystem::path const &p)
 	if (!uninstall_list(paths)) {
 		return false;
 	}
-	std::cerr << "[UNINSTALL] " << p << " uninstalled.\n";
+	std::cerr << p << " uninstalled.\n";
 	return true;
 }
 
@@ -726,14 +725,14 @@ bool Target::install(
 
 	if (!old.empty()) {
 		if (uninstall_list(old)) {
-			std::cerr << "[UNINSTALL] files left in list: " << list_file_path << "\n";
+			std::cerr << "uninstalled files left in list: " << list_file_path << "\n";
 		} else {
 			return false;
 		}
 	}
 
 	if (ignored_count) {
-		std::cerr << "Info: " << ignored_count << " not updated files are skipped\n";
+		std::cerr << ignored_count << " not updated files are skipped\n";
 	}
 	auto dst = exports(prefix);
 	if (dst.empty()) {

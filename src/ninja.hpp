@@ -16,7 +16,7 @@
 ///     - macro define: '-D'
 ///     - from 'pkg-config --cflags'
 ///     - others
-/// - 'lflags': link time flags, for 'exe' and dlib'
+/// - 'lflags': link time flags, for 'exe' and 'lib'
 ///   - library: '-l'
 ///   - library path: '-L'
 ///   - from 'pkg-config --libs'

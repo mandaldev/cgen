@@ -30,7 +30,7 @@ Pkgconf::~Pkgconf()
 
 void Pkgconf::on_pkgconf_error(std::string const &msg, pkgconf_client_t const *client)
 {
-	std::cerr << "pkgconf error: " << msg << "\n";
+	std::cerr << "[Error] pkgconf error: " << msg << "\n";
 }
 
 template <typename Data>
