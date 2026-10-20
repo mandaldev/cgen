@@ -178,13 +178,13 @@ bool Project::build_targets(std::string const &profile_name, std::vector<std::st
 			return false;
 		}
 		if (it->second->type() == TargetType::Executable) {
-			Com::join(" ", names, target_file_name(name, it->second->type(), false));
+			names = Com::join(" ", names, target_file_name(name, it->second->type(), false));
 		} else if (it->second->type() == TargetType::Library) {
 			if (profile.build_shared) {
-				Com::join(" ", names, target_file_name(name, it->second->type(), true));
+				names = Com::join(" ", names, target_file_name(name, it->second->type(), true));
 			}
 			if (profile.build_static) {
-				Com::join(" ", names, target_file_name(name, it->second->type(), false));
+				names = Com::join(" ", names, target_file_name(name, it->second->type(), false));
 			}
 		} else {
 			std::cerr << "[Error] no such target type: " << name
